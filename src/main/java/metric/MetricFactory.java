@@ -2,6 +2,7 @@ package metric;
 
 import exception.UnknownMetricException;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -10,10 +11,12 @@ import java.util.Set;
  */
 public class MetricFactory {
 
-    private static final Map<String, DistanceMetric> METRICS = Map.of(
-            "Cosine",    new CosineDistance(),
-            "Euclidean", new EuclideanDistance()
-    );
+    private static final Map<String, DistanceMetric> METRICS = new LinkedHashMap<>();
+
+    static {
+        METRICS.put("Cosine",    new CosineDistance());
+        METRICS.put("Euclidean", new EuclideanDistance());
+    }
 
     /**
      * Returns the metric associated with the given name.

@@ -1,5 +1,6 @@
 package service;
 
+import app.AppConfig;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -9,7 +10,7 @@ import java.nio.file.Path;
 public class PythonEmbeddingService {
 
     public void run(Path scriptPath, Path outputDir) throws IOException, InterruptedException {
-        Process process = new ProcessBuilder("python", scriptPath.toString())
+        Process process = new ProcessBuilder(AppConfig.PYTHON_CMD, scriptPath.toString())
                 .directory(outputDir.toFile())
                 .redirectErrorStream(true)
                 .start();

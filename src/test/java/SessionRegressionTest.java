@@ -13,13 +13,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Regression tests for every feature added / fixed in the current development session.
  * All tests run against the real GloVe data files (full_vectors.json + pca_vectors.json).
- *
  * Coverage:
  *  1. Case-insensitive EmbeddingSpace lookup
  *  2. Semantic Distance – multi-word all-pairs matrix
@@ -50,10 +50,10 @@ class SessionRegressionTest {
     }
 
     private static Path resolveDataFile(String name) {
-        return List.of(
+        return Stream.of(
                 Path.of("python", name),
                 Path.of("LatentSpaceExplorer", "python", name)
-        ).stream().filter(Files::exists).findFirst()
+        ).filter(Files::exists).findFirst()
                 .orElseThrow(() -> new AssertionError("Data file not found: " + name));
     }
 
@@ -188,7 +188,7 @@ class SessionRegressionTest {
     class VectorArithmetic {
 
         private final VectorArithmeticService service =
-                new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
 
         @Test
         @DisplayName("king − man + woman = queen")
@@ -310,7 +310,7 @@ class SessionRegressionTest {
         @Test
         @DisplayName("Neighbors of 'poor' are semantically related to poverty")
         void neighborsOfPoorAreReasonable() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(word("poor"), fullSpace, 10);
             List<String> neighbors = result.getNeighbors().stream().map(NeighborResult.Entry::word).toList();
             assertFalse(neighbors.contains("poor"), "Query word must not appear in neighbors");
@@ -324,7 +324,7 @@ class SessionRegressionTest {
         @Test
         @DisplayName("Neighbors of 'rich' are semantically related to wealth")
         void neighborsOfRichAreReasonable() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(word("rich"), fullSpace, 10);
             List<String> neighbors = result.getNeighbors().stream().map(NeighborResult.Entry::word).toList();
             assertFalse(neighbors.contains("rich"), "Query word must not appear in neighbors");
@@ -337,7 +337,7 @@ class SessionRegressionTest {
         @Test
         @DisplayName("Merged neighbor list for both axis words contains no duplicates")
         void mergedNeighborListHasNoDuplicates() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             int k = 5;
             NeighborResult fromResult = service.findNearest(word("poor"), fullSpace, k);
             NeighborResult toResult   = service.findNearest(word("rich"), fullSpace, k);
@@ -384,11 +384,12 @@ class SessionRegressionTest {
         @Test
         @DisplayName("NearestNeighbor ranking may differ between Cosine and Euclidean")
         void nearestNeighborRankingDiffersByMetric() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            DistanceService distSvc = new DistanceService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(distSvc);
             List<String> cosineNeighbors = service.findNearest(word("king"), fullSpace, 5)
                     .getNeighbors().stream().map(NeighborResult.Entry::word).toList();
 
-            service.setMetric(new EuclideanDistance());
+            distSvc.setMetric(new EuclideanDistance());
             List<String> euclideanNeighbors = service.findNearest(word("king"), fullSpace, 5)
                     .getNeighbors().stream().map(NeighborResult.Entry::word).toList();
 
@@ -407,7 +408,7 @@ class SessionRegressionTest {
         @DisplayName("Execute sets result; undo clears it; redo restores it")
         void executeUndoRedoCycle() {
             VectorArithmeticService arithmeticService =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             CommandHistory history = new CommandHistory();
 
             String[] currentResult = {null};
@@ -460,7 +461,7 @@ class SessionRegressionTest {
         private String computeResult(String exprA, String exprB, String exprC) {
             String[] result = {"—"};
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
 
             String wa = exprA.trim().toLowerCase();
             String wb = exprB.trim().toLowerCase();

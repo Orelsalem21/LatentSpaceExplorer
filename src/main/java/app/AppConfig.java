@@ -9,6 +9,13 @@ import service.*;
 
 public class AppConfig {
 
+    public static final String PYTHON_DIR        = "python";
+    public static final String PCA_FILE          = "pca_vectors.json";
+    public static final String FULL_VECTORS_FILE = "full_vectors.json";
+    public static final String EMBEDDER_SCRIPT   = "embedder.py";
+    public static final String SESSION_EXTENSION = ".session.json";
+    public static final String PYTHON_CMD        = "python";
+
     private final DistanceMetric          defaultMetric      = new CosineDistance();
     private final DistanceService         distanceService    = new DistanceService(defaultMetric);
     private final NearestNeighborService  neighborService    = new NearestNeighborService(distanceService);

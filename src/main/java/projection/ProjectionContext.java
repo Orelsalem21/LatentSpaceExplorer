@@ -43,11 +43,4 @@ public class ProjectionContext {
         return strategy.isCustom();
     }
 
-    public void setStrategy(ProjectionStrategy strategy) {
-        this.strategy = strategy;
-    }
-
-    public ProjectionStrategy getStrategy() {
-        return strategy;
-    }
 }

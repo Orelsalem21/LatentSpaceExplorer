@@ -66,7 +66,7 @@ class IntegrationTest {
         EmbeddingSpace filtered = new EmbeddingSpace(fullSpace.getVectors().stream()
                 .filter(wv -> !excluded.contains(wv.getWord()))
                 .collect(Collectors.toList()));
-        return new NearestNeighborService(new CosineDistance())
+        return new NearestNeighborService(new DistanceService(new CosineDistance()))
                 .findNearest(new WordVector("__target__", target), filtered, k)
                 .getNeighbors().stream()
                 .map(NeighborResult.Entry::word)
@@ -124,7 +124,7 @@ class IntegrationTest {
 
         @Test
         void nearestNeighborsOfDogAreSemanticallyReasonable() {
-            NeighborResult result = new NearestNeighborService(new CosineDistance())
+            NeighborResult result = new NearestNeighborService(new DistanceService(new CosineDistance()))
                     .findNearest(word(fullSpace, "dog"), fullSpace, 10);
             List<String> neighbors = result.getNeighbors().stream().map(NeighborResult.Entry::word).toList();
             assertEquals(10, neighbors.size());
@@ -135,10 +135,10 @@ class IntegrationTest {
 
         @Test
         void vectorArithmeticFindsClassicAnalogies() {
-            assertEquals("queen", nearestWords(formula("king", "man", "woman"), 5, "king", "man", "woman").get(0));
-            assertEquals("rome", nearestWords(formula("paris", "france", "italy"), 5, "paris", "france", "italy").get(0));
+            assertEquals("queen", nearestWords(formula("king", "man", "woman"), 5, "king", "man", "woman").getFirst());
+            assertEquals("rome", nearestWords(formula("paris", "france", "italy"), 5, "paris", "france", "italy").getFirst());
 
-            VectorArithmeticService service = new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+            VectorArithmeticService service = new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             assertEquals(Optional.of("queen"), service.compute(
                     word(fullSpace, "king"), word(fullSpace, "man"), word(fullSpace, "woman"), fullSpace));
         }
@@ -207,9 +207,10 @@ class IntegrationTest {
 
         @Test
         void metricChangeAffectsNearestNeighborService() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            DistanceService distSvc = new DistanceService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(distSvc);
             NeighborResult cosine = service.findNearest(word(fullSpace, "king"), fullSpace, 5);
-            service.setMetric(new EuclideanDistance());
+            distSvc.setMetric(new EuclideanDistance());
             NeighborResult euclidean = service.findNearest(word(fullSpace, "king"), fullSpace, 5);
             assertEquals(5, cosine.getNeighbors().size());
             assertEquals(5, euclidean.getNeighbors().size());
@@ -217,7 +218,7 @@ class IntegrationTest {
         }
 
         @Test
-        void changeAxesCommandCanBeUsedWithProjectionContext() throws Exception {
+        void changeAxesCommandCanBeUsedWithProjectionContext() {
             ProjectionContext projectionService = new ProjectionContext(new PCAProjection());
             CommandHistory history = new CommandHistory();
             int[] axes = {0, 1};

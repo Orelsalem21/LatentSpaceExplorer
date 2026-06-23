@@ -12,7 +12,7 @@ public class EmbeddingSpace {
 
     public EmbeddingSpace(List<WordVector> vectors) {
         if (vectors.size() > 1) {
-            int dim = vectors.get(0).getDimension();
+            int dim = vectors.getFirst().getDimension();
             for (int i = 1; i < vectors.size(); i++) {
                 int d = vectors.get(i).getDimension();
                 if (d != dim)

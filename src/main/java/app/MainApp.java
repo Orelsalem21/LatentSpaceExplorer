@@ -77,7 +77,7 @@ public class MainApp extends Application {
 
         cloud2D = new WordCloud2DView();
         cloud3D = new WordCloud3DView();
-        leftPanel = new ControlPanelView(appState);
+        leftPanel = new ControlPanelView();
         rightPanel = new DetailsPanelView(appState);
         mainView = new MainView(leftPanel, cloud2D, cloud3D, rightPanel);
 
@@ -198,7 +198,6 @@ public class MainApp extends Application {
     }
 
     private void wireLivePanelCallbacks() {
-        rightPanel.setOnReset(this::doReset);
 
         rightPanel.setOnDistanceWordsChanged(words -> {
             cloud2D.setDistanceWords(words);

@@ -33,4 +33,20 @@ public final class ErrorMessages {
     public static String needAtLeastTwoWords() {
         return "Please enter at least 2 words to calculate distance.";
     }
+
+    public static String noArithmeticResult() {
+        return "No result found for this expression.";
+    }
+
+    public static String sessionLoadFailed(String detail) {
+        return "Could not load session: " + detail;
+    }
+
+    public static String sessionSaveFailed(String detail) {
+        return "Save failed: " + detail;
+    }
+
+    public static String unknownMetric(String name) {
+        return "Unknown metric: " + name;
+    }
 }

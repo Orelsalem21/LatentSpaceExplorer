@@ -1,6 +1,7 @@
 package controller;
 
 import utils.AlertHelper;
+import utils.ErrorMessages;
 import app.AppState;
 import exception.InvalidExpressionException;
 import service.VectorArithmeticService;
@@ -50,7 +51,7 @@ public class VectorArithmeticController {
                     .ifPresentOrElse(
                             result -> showResult(expr, result),
                             () -> {
-                                AlertHelper.showWarning("No result found for this expression.");
+                                AlertHelper.showWarning(ErrorMessages.noArithmeticResult());
                                 rightPanel.setArithmeticResult("—");
                                 clearPath();
                             }

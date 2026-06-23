@@ -1,9 +1,11 @@
 package controller;
 
+import app.AppConfig;
 import app.AppState;
 import app.SessionState;
 import loader.SessionRepository;
 import utils.AlertHelper;
+import utils.ErrorMessages;
 import view.ControlPanelView;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -34,8 +36,8 @@ public class SessionController {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Save Session");
         chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Session files", "*.session.json"));
-        chooser.setInitialFileName("session.session.json");
+                new FileChooser.ExtensionFilter("Session files", "*" + AppConfig.SESSION_EXTENSION));
+        chooser.setInitialFileName("session" + AppConfig.SESSION_EXTENSION);
         File file = chooser.showSaveDialog(stage);
         if (file == null) return;
         saveToPath(file.toPath());
@@ -46,7 +48,7 @@ public class SessionController {
             SessionState state = sessionService.load(path);
             restoreState(state, leftPanel, mainCtrl);
         } catch (Exception e) {
-            AlertHelper.showError("Could not load session: " + e.getMessage());
+            AlertHelper.showError(ErrorMessages.sessionLoadFailed(e.getMessage()));
         }
     }
 
@@ -56,7 +58,7 @@ public class SessionController {
             SessionState state = buildState();
             sessionService.save(state, path);
         } catch (Exception e) {
-            AlertHelper.showError("Save failed: " + e.getMessage());
+            AlertHelper.showError(ErrorMessages.sessionSaveFailed(e.getMessage()));
         }
     }
 

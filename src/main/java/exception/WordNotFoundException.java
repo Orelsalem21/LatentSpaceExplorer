@@ -1,7 +1,9 @@
 package exception;
 
+import utils.ErrorMessages;
+
 public class WordNotFoundException extends Exception {
     public WordNotFoundException(String word) {
-        super("Word not found in vocabulary: \"" + word + "\"");
+        super(ErrorMessages.wordNotFound(word));
     }
 }

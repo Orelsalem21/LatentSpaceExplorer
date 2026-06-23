@@ -1,6 +1,4 @@
 import app.AppState;
-import exception.EmbeddingLoadException;
-import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.input.MouseButton;
@@ -13,8 +11,8 @@ import metric.CosineDistance;
 import model.*;
 import org.junit.jupiter.api.*;
 import projection.PCAProjection;
-import projection.ThreeDimensionalProjection;
 import service.CentroidService;
+import service.DistanceService;
 import service.NearestNeighborService;
 import projection.ProjectionContext;
 import view.WordCloud2DView;
@@ -132,10 +130,10 @@ class UiAndStressTest {
         return ((Number) privateField(target, fieldName)).doubleValue();
     }
 
-    private static void fireScroll(Canvas canvas, double x, double y, double deltaY) {
+    private static void fireScroll(Canvas canvas, double deltaY) {
         ScrollEvent event = new ScrollEvent(
                 ScrollEvent.SCROLL,
-                x, y, x, y,
+                450, 325, 450, 325,
                 false, false, false, false,
                 false, false,
                 0, deltaY,
@@ -148,21 +146,21 @@ class UiAndStressTest {
         canvas.fireEvent(event);
     }
 
-    private static void fireMouse(Canvas canvas, javafx.event.EventType<MouseEvent> type,
-                                  MouseButton button, double x, double y, boolean ctrl) {
+    private static void fireMouse(Canvas canvas,
+                                  boolean ctrl) {
         MouseEvent event = new MouseEvent(
-                type,
-                x, y, x, y,
-                button,
+                MouseEvent.MOUSE_CLICKED,
+                450, 325, 450, 325,
+                MouseButton.PRIMARY,
                 1,
                 false, ctrl, false, false,
-                button == MouseButton.PRIMARY,
-                button == MouseButton.MIDDLE,
-                button == MouseButton.SECONDARY,
+                MouseButton.PRIMARY == MouseButton.PRIMARY,
+                MouseButton.PRIMARY == MouseButton.MIDDLE,
+                MouseButton.PRIMARY == MouseButton.SECONDARY,
                 false,
                 false,
                 false,
-                new PickResult(canvas, x, y)
+                new PickResult(canvas, 450, 325)
         );
         canvas.fireEvent(event);
     }
@@ -183,7 +181,7 @@ class UiAndStressTest {
         @Test
         @Timeout(20)
         void repeatedRealNearestNeighborSearchesStayStable() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             for (WordVector query : fullSpace.getVectors().subList(0, 120)) {
                 NeighborResult result = service.findNearest(query, fullSpace, 25);
                 assertEquals(25, result.getNeighbors().size());
@@ -197,13 +195,13 @@ class UiAndStressTest {
         void repeatedCentroidCalculationsStayFiniteAndDoNotMutateSources() {
             CentroidService service = new CentroidService();
             List<WordVector> words = fullSpace.getVectors();
-            double original = words.get(0).getVector()[0];
+            double original = words.getFirst().getVector()[0];
             for (int start = 0; start < 300; start += 5) {
                 double[] centroid = service.compute(words.subList(start, start + 25)).getCentroid();
                 assertEquals(100, centroid.length);
                 for (double value : centroid) assertTrue(Double.isFinite(value));
             }
-            assertEquals(original, words.get(0).getVector()[0], 0.0);
+            assertEquals(original, words.getFirst().getVector()[0], 0.0);
         }
 
         @Test
@@ -211,7 +209,7 @@ class UiAndStressTest {
         void projectionOfFullPcaFileIsStable() throws Exception {
             ProjectionContext service = new ProjectionContext(new PCAProjection());
             assertEquals(pcaSpace.size(), service.project(pcaSpace, 0, 1).size());
-            service.setStrategy(new ThreeDimensionalProjection(2));
+            service.useThreeDimensionalProjection(2);
             List<ProjectedPoint> points3D = service.project(pcaSpace, 0, 1);
             assertEquals(pcaSpace.size(), points3D.size());
             assertTrue(points3D.stream().allMatch(p -> Double.isFinite(p.getX()) && Double.isFinite(p.getY()) && Double.isFinite(p.getZ())));
@@ -254,7 +252,7 @@ class UiAndStressTest {
                 view.setSelected(Set.of("alpha"));
                 view.setNeighbors(Map.of("beta", 0.1, "gamma", 0.2));
 
-                for (int i = 0; i < 200; i++) fireScroll(canvas, 450, 325, i % 2 == 0 ? 120 : -120);
+                for (int i = 0; i < 200; i++) fireScroll(canvas, i % 2 == 0 ? 120 : -120);
                 view.redraw();
                 try {
                     assertTrue(Double.isFinite(privateDouble(view, "scale")));
@@ -287,8 +285,8 @@ class UiAndStressTest {
                 view.setOnWordAdded(added::add);
 
                 for (int i = 0; i < 100; i++) {
-                    fireMouse(canvas, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 450, 325, false);
-                    fireMouse(canvas, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 450, 325, true);
+                    fireMouse(canvas, false);
+                    fireMouse(canvas, true);
                 }
                 assertFalse(selected.isEmpty(), "Regular click should select a word");
                 assertFalse(added.isEmpty(), "Ctrl-click should add/toggle a word");

@@ -13,7 +13,7 @@ public class PCAProjection implements ProjectionStrategy {
     public List<ProjectedPoint> project(EmbeddingSpace space, int xAxis, int yAxis) throws InvalidAxisException {
         var vectors = space.getVectors();
         if (!vectors.isEmpty()) {
-            int dim = vectors.get(0).getVector().length;
+            int dim = vectors.getFirst().getVector().length;
             validateAxis(xAxis, dim);
             validateAxis(yAxis, dim);
         }

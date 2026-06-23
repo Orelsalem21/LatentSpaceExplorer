@@ -54,7 +54,6 @@ public class DetailsPanelView {
     private Consumer<String>           onWordAdded        = q -> {};
     private Consumer<String>           onCenterWord       = q -> {};
     private Consumer<String>           onNeighborSelected = q -> {};
-    private Runnable                   onReset            = () -> {};
     private Runnable                   onComputeCentroid  = () -> {};
     private Consumer<String>           onArithmetic           = q -> {};
     private Consumer<List<String>>     onComputeDistanceMatrix  = words -> {};
@@ -126,7 +125,6 @@ public class DetailsPanelView {
     public void setOnWordAdded(Consumer<String> h)                 { this.onWordAdded         = h; }
     public void setOnCenterWord(Consumer<String> h)                { this.onCenterWord         = h; }
     public void setOnNeighborSelected(Consumer<String> h)          { this.onNeighborSelected   = h; }
-    public void setOnReset(Runnable h)                             { this.onReset            = h; }
     public void setOnComputeCentroid(Runnable h)                   { this.onComputeCentroid  = h; }
     public void setOnArithmetic(Consumer<String> h)                { this.onArithmetic             = h; }
     public void setOnComputeDistanceMatrix(Consumer<List<String>> h){ this.onComputeDistanceMatrix  = h; }
@@ -135,7 +133,6 @@ public class DetailsPanelView {
 
     public void setArithmeticResult(String r) { arithResult.setText(r); }
     public void setCentroidStatus(String r)   { centroidLabel.setText(r); }
-    public void clearSearch()                 { searchField.clear(); }
 
     public void resetAll() {
         searchField.clear();
@@ -144,7 +141,7 @@ public class DetailsPanelView {
         wordC.clear();
 
         while (distanceFields.size() > 2) {
-            TextField field = distanceFields.remove(distanceFields.size() - 1);
+            TextField field = distanceFields.removeLast();
             distanceWordRows.getChildren().remove(field.getParent());
         }
         distanceFields.forEach(TextInputControl::clear);
@@ -276,7 +273,7 @@ public class DetailsPanelView {
     private void fireDistanceWordsChanged() {
         Set<String> words = new java.util.LinkedHashSet<>();
         for (TextField f : distanceFields) {
-            String w = f.getText().trim();
+            String w = f.getText().trim().toLowerCase();
             if (!w.isEmpty()) words.add(w);
         }
         onDistanceWordsChanged.accept(words);

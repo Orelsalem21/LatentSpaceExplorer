@@ -11,7 +11,7 @@ public class CentroidService {
     public CentroidResult compute(List<WordVector> words) {
         if (words.isEmpty()) throw new IllegalArgumentException("Cannot compute centroid of empty list");
 
-        int dim = words.get(0).getDimension();
+        int dim = words.getFirst().getDimension();
         for (WordVector wv : words) {
             if (wv.getDimension() != dim)
                 throw new IllegalArgumentException(

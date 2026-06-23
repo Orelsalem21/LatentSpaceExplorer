@@ -1,5 +1,6 @@
 package controller;
 
+import app.AppConfig;
 import app.AppState;
 import exception.EmbeddingLoadException;
 import javafx.application.Platform;
@@ -45,7 +46,7 @@ public class EmbeddingLoaderController {
         File file = chooser.showOpenDialog(stage);
         if (file == null) return;
         Path path = file.toPath();
-        if (path.getFileName().toString().endsWith(".session.json")) {
+        if (path.getFileName().toString().endsWith(AppConfig.SESSION_EXTENSION)) {
             onSessionFile.accept(path);
         } else {
             loadFromPath(path);
@@ -66,20 +67,20 @@ public class EmbeddingLoaderController {
     }
 
     public void autoLoadOnStartup() {
-        Path dataDir = Path.of("python").toAbsolutePath();
-        Path pcaFile = dataDir.resolve("pca_vectors.json");
+        Path dataDir = Path.of(AppConfig.PYTHON_DIR).toAbsolutePath();
+        Path pcaFile = dataDir.resolve(AppConfig.PCA_FILE);
         if (pcaFile.toFile().exists()) {
-            loadWithFullSpace(pcaFile, dataDir.resolve("full_vectors.json"));
+            loadWithFullSpace(pcaFile, dataDir.resolve(AppConfig.FULL_VECTORS_FILE));
         } else {
             Platform.runLater(onPythonStart);
             new Thread(() -> {
                 try {
-                    pythonService.run(Path.of("python", "embedder.py").toAbsolutePath(), dataDir);
+                    pythonService.run(Path.of(AppConfig.PYTHON_DIR, AppConfig.EMBEDDER_SCRIPT).toAbsolutePath(), dataDir);
                     Platform.runLater(() -> {
                         onPythonDone.run();
                         loadWithFullSpace(
-                                dataDir.resolve("pca_vectors.json"),
-                                dataDir.resolve("full_vectors.json")
+                                dataDir.resolve(AppConfig.PCA_FILE),
+                                dataDir.resolve(AppConfig.FULL_VECTORS_FILE)
                         );
                     });
                 } catch (Exception e) {
@@ -99,11 +100,6 @@ public class EmbeddingLoaderController {
             if (fullSpace != null) appState.setFullSpace(fullSpace);
             appState.setSpace(pcaSpace);
 
-            if (appState.getFullSpace() != null
-                    && !appState.getFullSpace().getVectors().isEmpty()) {
-
-                appState.getFullSpace().getVectors().getFirst().getDimension();
-            }
             projectionController.resetToDefaultProjection();
             projectionController.reprojectAndDraw();
         } catch (EmbeddingLoadException e) {

@@ -195,13 +195,13 @@ class RequirementsTest {
             assertTrue(ProjectionStrategy.class.isInterface());
             ProjectionContext service = new ProjectionContext(new PCAProjection());
             assertEquals(sampleSpace().size(), service.project(sampleSpace(), 0, 1).size());
-            service.setStrategy(new ThreeDimensionalProjection(2));
+            service.useThreeDimensionalProjection(2);
             assertEquals(3.0, service.project(sampleSpace(), 0, 1).stream()
                     .filter(p -> p.getWord().equals("up")).findFirst().orElseThrow().getZ(), EPS);
         }
 
         @Test
-        void invalidProjectionAxesAreRejected() throws Exception {
+        void invalidProjectionAxesAreRejected() {
             assertThrows(Exception.class, () -> new PCAProjection().project(sampleSpace(), -1, 1));
             assertThrows(Exception.class, () -> new PCAProjection().project(sampleSpace(), 0, 99));
             assertThrows(Exception.class, () -> new ThreeDimensionalProjection(99).project(sampleSpace(), 0, 1));
@@ -213,11 +213,11 @@ class RequirementsTest {
     class SemanticServiceTests {
         @Test
         void nearestNeighborBoundariesWork() {
-            NearestNeighborService service = new NearestNeighborService(new EuclideanDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new EuclideanDistance()));
             NeighborResult two = service.findNearest(w("origin", 0, 0, 0), sampleSpace(), 2);
             assertEquals("origin", two.getQueryWord());
             assertEquals(2, two.getNeighbors().size());
-            assertEquals("east", two.getNeighbors().get(0).word());
+            assertEquals("east", two.getNeighbors().getFirst().word());
             assertFalse(two.getNeighbors().stream().anyMatch(e -> e.word().equals("origin")));
 
             assertTrue(service.findNearest(w("origin", 0, 0, 0), sampleSpace(), 0).getNeighbors().isEmpty());
@@ -230,7 +230,7 @@ class RequirementsTest {
         @Test
         void vectorArithmeticImplementsV1MinusV2PlusV3() {
             VectorArithmeticService service = new VectorArithmeticService(
-                    new NearestNeighborService(new EuclideanDistance()));
+                    new NearestNeighborService(new DistanceService(new EuclideanDistance())));
             Optional<String> result = service.compute(
                     analogySpace().find("king").orElseThrow(),
                     analogySpace().find("man").orElseThrow(),

@@ -1,6 +1,5 @@
 package view;
 
-import app.AppState;
 import utils.AlertHelper;
 import utils.ButtonStyler;
 import utils.ErrorMessages;
@@ -12,6 +11,10 @@ import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
+import metric.MetricFactory;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /** Left-side configuration panel: data loading, axis selection, custom-axis projection, metric, K neighbours, and display mode. */
@@ -28,7 +31,6 @@ public class ControlPanelView {
     private static final String RADIO_STYLE  = "-fx-text-fill: #212529;";
 
     private final VBox root;
-    private final AppState appState;
 
     private Runnable                   onLoadFile         = () -> {};
     private Runnable                   onSaveAs           = () -> {};
@@ -46,8 +48,7 @@ public class ControlPanelView {
     private final Slider    kSlider = new Slider(0, 100, 5);
     private       int       maxK    = 4999;
     private       TextField kField;
-    private       RadioButton cosineMetric;
-    private       RadioButton euclideanMetric;
+    private final Map<String, RadioButton> metricButtons = new LinkedHashMap<>();
     private       RadioButton mode2D;
     private       RadioButton mode3D;
 
@@ -55,8 +56,7 @@ public class ControlPanelView {
     private final TextField axisTo     = new TextField();
     private final Label     axisResult = new Label("—");
 
-    public ControlPanelView(AppState appState) {
-        this.appState = appState;
+    public ControlPanelView() {
         root = new VBox(12);
         root.setPadding(new Insets(12));
         root.setPrefWidth(220);
@@ -155,10 +155,6 @@ public class ControlPanelView {
         onAxesChanged.accept(new int[]{x, y, z});
     }
 
-    public void resetAxes() {
-        setAxes(new int[]{0, 1, 2});
-    }
-
     public void setAxes(int[] axes) {
         suppressCallbacks = true;
         xAxisCombo.getSelectionModel().select(axes[0]);
@@ -169,8 +165,8 @@ public class ControlPanelView {
 
     public void setMetric(String name) {
         suppressCallbacks = true;
-        if ("Euclidean".equalsIgnoreCase(name)) euclideanMetric.setSelected(true);
-        else                                    cosineMetric.setSelected(true);
+        RadioButton btn = metricButtons.get(name);
+        if (btn != null) btn.setSelected(true);
         suppressCallbacks = false;
     }
 
@@ -221,21 +217,23 @@ public class ControlPanelView {
         title.setStyle(SECTION_TITLE_STYLE);
 
         ToggleGroup group = new ToggleGroup();
-        cosineMetric    = new RadioButton("Cosine");
-        euclideanMetric = new RadioButton("Euclidean");
-        cosineMetric.setToggleGroup(group);
-        euclideanMetric.setToggleGroup(group);
-        cosineMetric.setSelected(true);
-        cosineMetric.setStyle(RADIO_STYLE);
-        euclideanMetric.setStyle(RADIO_STYLE);
+        MetricFactory.names().forEach(name -> {
+            RadioButton btn = new RadioButton(name);
+            btn.setToggleGroup(group);
+            btn.setStyle(RADIO_STYLE);
+            metricButtons.put(name, btn);
+        });
+        metricButtons.values().stream().findFirst().ifPresent(btn -> btn.setSelected(true));
 
         group.selectedToggleProperty().addListener((obs, o, n) -> {
             if (suppressCallbacks) return;
-            if (n == cosineMetric)    onMetricChanged.accept("Cosine");
-            if (n == euclideanMetric) onMetricChanged.accept("Euclidean");
+            metricButtons.forEach((name, btn) -> {
+                if (n == btn) onMetricChanged.accept(name);
+            });
         });
 
-        HBox row = new HBox(16, cosineMetric, euclideanMetric);
+        HBox row = new HBox(16);
+        row.getChildren().addAll(metricButtons.values());
         row.setAlignment(Pos.CENTER_LEFT);
 
         Label hint = new Label("Semantic Distance — Cosine Similarity / Euclidean Distance");

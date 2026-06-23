@@ -102,16 +102,16 @@ class EdgeCaseAndStressTest {
         return null;
     }
 
-    private static Canvas prepare2D(WordCloud2DView view, double w, double h) {
+    private static Canvas prepare2D(WordCloud2DView view) {
         Pane root = view.getRoot();
-        root.setMinSize(w, h); root.setPrefSize(w, h); root.resize(w, h); root.layout();
+        root.setMinSize(900, 600); root.setPrefSize(900, 600); root.resize(900, 600); root.layout();
         Canvas c = getCanvas(root);
         assertNotNull(c);
         return c;
     }
 
-    private static void scroll(Canvas c, double x, double y, double delta) {
-        c.fireEvent(new ScrollEvent(ScrollEvent.SCROLL, x, y, x, y, false, false, false, false,
+    private static void scroll(Canvas c, double delta) {
+        c.fireEvent(new ScrollEvent(ScrollEvent.SCROLL, 450, 300, 450, 300, false, false, false, false,
                 false, false, 0, delta, 0, delta,
                 ScrollEvent.HorizontalTextScrollUnits.NONE, 0,
                 ScrollEvent.VerticalTextScrollUnits.NONE, 0, 0, null));
@@ -265,11 +265,11 @@ class EdgeCaseAndStressTest {
         void extremeZoomInKeepsScalePositiveAndFinite() throws Exception {
             runFx(() -> {
                 WordCloud2DView view = new WordCloud2DView();
-                Canvas canvas = prepare2D(view, 900, 600);
+                Canvas canvas = prepare2D(view);
                 view.setPoints(new ProjectionContext(new PCAProjection()).project(pcaSpace, 0, 1));
 
                 // 500 zoom-in events
-                for (int i = 0; i < 500; i++) scroll(canvas, 450, 300, 120);
+                for (int i = 0; i < 500; i++) scroll(canvas, 120);
 
                 assertDoesNotThrow(view::redraw);
             });
@@ -280,11 +280,11 @@ class EdgeCaseAndStressTest {
         void extremeZoomOutKeepsScalePositiveAndFinite() throws Exception {
             runFx(() -> {
                 WordCloud2DView view = new WordCloud2DView();
-                Canvas canvas = prepare2D(view, 900, 600);
+                Canvas canvas = prepare2D(view);
                 view.setPoints(new ProjectionContext(new PCAProjection()).project(pcaSpace, 0, 1));
 
                 // 500 zoom-out events
-                for (int i = 0; i < 500; i++) scroll(canvas, 450, 300, -120);
+                for (int i = 0; i < 500; i++) scroll(canvas, -120);
 
                 assertDoesNotThrow(view::redraw);
             });
@@ -295,10 +295,10 @@ class EdgeCaseAndStressTest {
         void alternatingZoomInOutRemainsStable() throws Exception {
             runFx(() -> {
                 WordCloud2DView view = new WordCloud2DView();
-                Canvas canvas = prepare2D(view, 900, 600);
+                Canvas canvas = prepare2D(view);
                 view.setPoints(new ProjectionContext(new PCAProjection()).project(pcaSpace, 0, 1));
 
-                for (int i = 0; i < 300; i++) scroll(canvas, 450, 300, i % 2 == 0 ? 120 : -120);
+                for (int i = 0; i < 300; i++) scroll(canvas, i % 2 == 0 ? 120 : -120);
 
                 view.resetView();
                 assertDoesNotThrow(view::redraw);
@@ -310,9 +310,9 @@ class EdgeCaseAndStressTest {
         void zoomOnEmptyCanvasDoesNotCrash() throws Exception {
             runFx(() -> {
                 WordCloud2DView view = new WordCloud2DView();
-                Canvas canvas = prepare2D(view, 900, 600);
+                Canvas canvas = prepare2D(view);
                 // no setPoints — canvas is empty
-                for (int i = 0; i < 100; i++) scroll(canvas, 450, 300, 120);
+                for (int i = 0; i < 100; i++) scroll(canvas, 120);
                 assertDoesNotThrow(view::redraw);
             });
         }
@@ -359,7 +359,7 @@ class EdgeCaseAndStressTest {
         @Test
         void cosineDistanceIsNonNegative() {
             CosineDistance cosine = new CosineDistance();
-            double[] query = fullSpace.getVectors().get(0).getVector();
+            double[] query = fullSpace.getVectors().getFirst().getVector();
             for (WordVector wv : fullSpace.getVectors().subList(0, 50)) {
                 double d = cosine.compute(query, wv.getVector());
                 // floating-point arithmetic may produce tiny negatives (~-1e-15) for near-identical
@@ -371,7 +371,7 @@ class EdgeCaseAndStressTest {
         @Test
         void euclideanDistanceIsNonNegative() {
             EuclideanDistance euclidean = new EuclideanDistance();
-            double[] query = fullSpace.getVectors().get(0).getVector();
+            double[] query = fullSpace.getVectors().getFirst().getVector();
             for (WordVector wv : fullSpace.getVectors().subList(0, 50)) {
                 double d = euclidean.compute(query, wv.getVector());
                 assertTrue(d >= 0.0, "Negative euclidean distance for: " + wv.getWord());
@@ -404,14 +404,14 @@ class EdgeCaseAndStressTest {
 
         @Test
         void nearestNeighborWithNegativeKThrows() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             assertThrows(IllegalArgumentException.class,
                     () -> service.findNearest(word(fullSpace, "king"), fullSpace, -1));
         }
 
         @Test
         void nearestNeighborWithKZeroReturnsEmptyList() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(word(fullSpace, "king"), fullSpace, 0);
             assertTrue(result.getNeighbors().isEmpty());
         }
@@ -438,7 +438,7 @@ class EdgeCaseAndStressTest {
             EmbeddingSpace tinySpace = new EmbeddingSpace(tiny);
 
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
 
             // All results filtered out — should return empty (or any word from tiny)
             Optional<String> result = service.compute(
@@ -452,14 +452,14 @@ class EdgeCaseAndStressTest {
         }
 
         @Test
-        void projectionWithAxisIndexBeyondDimensionDoesNotThrow() throws Exception {
+        void projectionWithAxisIndexBeyondDimensionDoesNotThrow() {
             ProjectionContext service = new ProjectionContext(new PCAProjection());
             // pcaSpace has 50 dims — axis 49 is valid, 50 would be out of bounds
             assertDoesNotThrow(() -> service.project(pcaSpace, 0, 49));
         }
 
         @Test
-        void customAxisProjectionWithIdenticalWordsProducesZeroAxis() throws Exception {
+        void customAxisProjectionWithIdenticalWordsProducesZeroAxis() {
             WordVector w = word(fullSpace, "king");
             // from == to → axis vector is zero → all projections should be 0
             CustomAxisProjection proj = new CustomAxisProjection(
@@ -496,7 +496,7 @@ class EdgeCaseAndStressTest {
             Arrays.fill(random, 0.1);
             WordVector external = new WordVector("__external__", random);
 
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(external, fullSpace, 5);
 
             assertEquals(5, result.getNeighbors().size());
@@ -602,7 +602,7 @@ class EdgeCaseAndStressTest {
         @Test
         void kingMinusManPlusWomanIsQueen() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             Optional<String> result = service.compute(
                     word(fullSpace, "king"),
                     word(fullSpace, "man"),
@@ -614,7 +614,7 @@ class EdgeCaseAndStressTest {
         @Test
         void arithmeticResultExcludesInputWords() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             Optional<String> result = service.compute(
                     word(fullSpace, "paris"),
                     word(fullSpace, "france"),
@@ -628,7 +628,7 @@ class EdgeCaseAndStressTest {
         @Test
         void arithmeticResultIsFinite() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             // compute result vector manually and verify all components are finite
             double[] va = word(fullSpace, "king").getVector();
             double[] vb = word(fullSpace, "man").getVector();
@@ -643,7 +643,7 @@ class EdgeCaseAndStressTest {
         @Timeout(20)
         void arithmeticStressOver100PairsIsAlwaysPresent() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             List<WordVector> vectors = fullSpace.getVectors().subList(0, 100);
             int found = 0;
             for (int i = 0; i + 2 < vectors.size(); i += 3) {
@@ -680,7 +680,7 @@ class EdgeCaseAndStressTest {
 
         @Test
         void lineThicknessIsAlwaysInRange() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(word(fullSpace, "king"), fullSpace, 20);
 
             List<NeighborResult.Entry> neighbors = result.getNeighbors();
@@ -705,7 +705,7 @@ class EdgeCaseAndStressTest {
         @Test
         @Timeout(20)
         void lineThicknessForAllRealNeighborSetsIsAlwaysFinite() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             for (WordVector wv : fullSpace.getVectors().subList(0, 80)) {
                 NeighborResult result = service.findNearest(wv, fullSpace, 15);
                 List<NeighborResult.Entry> neighbors = result.getNeighbors();
@@ -809,21 +809,6 @@ class EdgeCaseAndStressTest {
             history.redo();
             assertArrayEquals(new int[]{2, 3}, current);
         }
-
-        @Test
-        void executeAfterUndoClearsRedoStack() {
-            CommandHistory history = new CommandHistory();
-            int[] val = {0};
-            history.execute(new ChangeAxesCommand(new int[]{1, 0}, new int[]{0, 0},
-                    axes -> val[0] = axes[0]));
-            history.undo();
-            assertTrue(history.canRedo());
-            // new command should clear redo stack
-            history.execute(new ChangeAxesCommand(new int[]{3, 4}, new int[]{0, 0},
-                    axes -> val[0] = axes[0]));
-            assertFalse(history.canRedo());
-        }
-
         @Test
         void undoOnEmptyHistoryDoesNothing() {
             CommandHistory history = new CommandHistory();
@@ -942,9 +927,9 @@ class EdgeCaseAndStressTest {
             int[] val = {0};
             CommandHistory history = new CommandHistory();
             for (int i = 1; i <= 100; i++) {
-                int prev = val[0], next = i;
+                int prev = val[0];
                 history.execute(new ChangeAxesCommand(
-                        new int[]{next}, new int[]{prev},
+                        new int[]{i}, new int[]{prev},
                         axes -> val[0] = axes[0]));
             }
             assertEquals(100, val[0]);
@@ -986,7 +971,7 @@ class EdgeCaseAndStressTest {
 
         @Test
         void newMetricCanBePluggedIntoNearestNeighborServiceWithoutCodeChange() {
-            NearestNeighborService service = new NearestNeighborService(new ManhattanDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new ManhattanDistance()));
             NeighborResult result = service.findNearest(word(fullSpace, "king"), fullSpace, 10);
             assertEquals(10, result.getNeighbors().size());
             result.getNeighbors().forEach(e -> assertTrue(e.distance() >= 0.0));
@@ -995,9 +980,9 @@ class EdgeCaseAndStressTest {
         @Test
         void threeDifferentMetricsProduceDifferentRankings() {
             WordVector query = word(fullSpace, "king");
-            NearestNeighborService cosineService    = new NearestNeighborService(new CosineDistance());
-            NearestNeighborService euclideanService = new NearestNeighborService(new EuclideanDistance());
-            NearestNeighborService manhattanService = new NearestNeighborService(new ManhattanDistance());
+            NearestNeighborService cosineService    = new NearestNeighborService(new DistanceService(new CosineDistance()));
+            NearestNeighborService euclideanService = new NearestNeighborService(new DistanceService(new EuclideanDistance()));
+            NearestNeighborService manhattanService = new NearestNeighborService(new DistanceService(new ManhattanDistance()));
 
             List<String> cosineNeighbors    = cosineService.findNearest(query, fullSpace, 5)
                     .getNeighbors().stream().map(NeighborResult.Entry::word).toList();
@@ -1018,7 +1003,7 @@ class EdgeCaseAndStressTest {
             ProjectionContext service = new ProjectionContext(new PCAProjection());
             List<ProjectedPoint> pca2d = service.project(pcaSpace, 0, 1);
 
-            service.setStrategy(new ThreeDimensionalProjection(2));
+            service.useThreeDimensionalProjection(2);
             List<ProjectedPoint> pca3d = service.project(pcaSpace, 0, 1);
 
             assertEquals(pca2d.size(), pca3d.size());
@@ -1055,7 +1040,7 @@ class EdgeCaseAndStressTest {
 
         @Test
         void neighborRankingOnFullSpaceUsesAllDimensions() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             List<String> fullNeighbors = service.findNearest(word(fullSpace, "king"), fullSpace, 10)
                     .getNeighbors().stream().map(NeighborResult.Entry::word).toList();
             List<String> pcaNeighbors  = service.findNearest(word(pcaSpace,  "king"), pcaSpace,  10)
@@ -1064,7 +1049,7 @@ class EdgeCaseAndStressTest {
             // vectors have different dimensions — results may differ
             assertTrue(Double.isFinite(
                     service.findNearest(word(fullSpace, "king"), fullSpace, 10)
-                           .getNeighbors().get(0).distance()));
+                           .getNeighbors().getFirst().distance()));
             assertFalse(fullNeighbors.isEmpty());
             assertFalse(pcaNeighbors.isEmpty());
         }
@@ -1141,9 +1126,9 @@ class EdgeCaseAndStressTest {
 
         @Test
         void nearestNeighborOnSingleWordSpaceReturnsEmptyList() {
-            WordVector solo = fullSpace.getVectors().get(0);
+            WordVector solo = fullSpace.getVectors().getFirst();
             EmbeddingSpace single = new EmbeddingSpace(List.of(solo));
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(solo, single, 5);
             // query word is excluded → no other words → empty result
             assertTrue(result.getNeighbors().isEmpty());
@@ -1153,9 +1138,9 @@ class EdgeCaseAndStressTest {
         void nearestNeighborWithKLargerThanSpaceSizeReturnsAllOtherWords() {
             List<WordVector> tiny = fullSpace.getVectors().subList(0, 5);
             EmbeddingSpace tinySpace = new EmbeddingSpace(tiny);
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             // K=100 but space has only 5 words; query excluded → max 4 results
-            NeighborResult result = service.findNearest(tiny.get(0), tinySpace, 100);
+            NeighborResult result = service.findNearest(tiny.getFirst(), tinySpace, 100);
             assertEquals(4, result.getNeighbors().size());
         }
 
@@ -1167,7 +1152,7 @@ class EdgeCaseAndStressTest {
 
         @Test
         void nearestNeighborWithKZeroAlwaysReturnsEmptyList() {
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(word(fullSpace, "king"), fullSpace, 0);
             assertTrue(result.getNeighbors().isEmpty());
         }

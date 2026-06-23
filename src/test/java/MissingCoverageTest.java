@@ -88,7 +88,7 @@ class MissingCoverageTest {
                     new WordVector("נסיך", new double[]{0.8, 0.2}),
                     new WordVector("נסיכה",new double[]{0.7, 0.3})
             ));
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             NeighborResult result = service.findNearest(space.find("מלך").orElseThrow(), space, 2);
             assertEquals(2, result.getNeighbors().size());
             assertFalse(result.getNeighbors().stream().anyMatch(e -> e.word().equals("מלך")));
@@ -124,10 +124,10 @@ class MissingCoverageTest {
                     new WordVector("e", new double[]{0, 1, 1})
             );
             EmbeddingSpace space = new EmbeddingSpace(words);
-            NearestNeighborService service = new NearestNeighborService(new EuclideanDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new EuclideanDistance()));
 
             int k = space.size() - 1; // 4
-            NeighborResult result = service.findNearest(words.get(0), space, k);
+            NeighborResult result = service.findNearest(words.getFirst(), space, k);
             assertEquals(k, result.getNeighbors().size(),
                     "K = space.size()-1 should return exactly all other words");
             assertFalse(result.getNeighbors().stream().anyMatch(e -> e.word().equals("a")));
@@ -138,10 +138,10 @@ class MissingCoverageTest {
         void kEqualsRealSpaceSizeMinusOne() {
             List<WordVector> tiny = fullSpace.getVectors().subList(0, 8);
             EmbeddingSpace tinySpace = new EmbeddingSpace(tiny);
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
 
             int k = tinySpace.size() - 1; // 7
-            NeighborResult result = service.findNearest(tiny.get(0), tinySpace, k);
+            NeighborResult result = service.findNearest(tiny.getFirst(), tinySpace, k);
             assertEquals(k, result.getNeighbors().size());
         }
     }
@@ -162,9 +162,9 @@ class MissingCoverageTest {
                     new WordVector("z", new double[]{1, 1})
             );
             EmbeddingSpace space = new EmbeddingSpace(tiny);
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
 
-            NeighborResult result = service.findNearest(tiny.get(0), space, 999);
+            NeighborResult result = service.findNearest(tiny.getFirst(), space, 999);
             assertEquals(2, result.getNeighbors().size(),
                     "K > size should return all available neighbors (size - 1)");
         }
@@ -258,7 +258,7 @@ class MissingCoverageTest {
         @DisplayName("king - king + king: result vector = king vector, result is nearest word to king excluding king")
         void sameWordThreeTimesResultsInNearestOfThatWord() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             WordVector king = word(fullSpace, "king");
             // king - king + king = king vector → nearest excluding "king" itself
             Optional<String> result = service.compute(king, king, king, fullSpace);
@@ -271,7 +271,7 @@ class MissingCoverageTest {
         @DisplayName("computeFromExpression: 1 word → throws InvalidExpressionException")
         void oneWordExpressionThrows() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             assertThrows(InvalidExpressionException.class,
                     () -> service.computeFromExpression("king", fullSpace));
         }
@@ -280,7 +280,7 @@ class MissingCoverageTest {
         @DisplayName("computeFromExpression: 2 words → throws InvalidExpressionException")
         void twoWordExpressionThrows() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             assertThrows(InvalidExpressionException.class,
                     () -> service.computeFromExpression("king,man", fullSpace));
         }
@@ -289,7 +289,7 @@ class MissingCoverageTest {
         @DisplayName("computeFromExpression: 4 words → throws InvalidExpressionException")
         void fourWordExpressionThrows() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             assertThrows(InvalidExpressionException.class,
                     () -> service.computeFromExpression("king,man,woman,queen", fullSpace));
         }
@@ -298,7 +298,7 @@ class MissingCoverageTest {
         @DisplayName("computeFromExpression: empty string → throws InvalidExpressionException")
         void emptyExpressionThrows() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             assertThrows(InvalidExpressionException.class,
                     () -> service.computeFromExpression("", fullSpace));
         }
@@ -307,7 +307,7 @@ class MissingCoverageTest {
         @DisplayName("computeFromExpression: blank words (spaces only) → throws with missing-word message")
         void blankWordsThrowWithMissingMessage() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             InvalidExpressionException ex = assertThrows(InvalidExpressionException.class,
                     () -> service.computeFromExpression(" , , ", fullSpace));
             assertTrue(ex.getMessage().contains("Missing"),
@@ -318,7 +318,7 @@ class MissingCoverageTest {
         @DisplayName("computeFromExpression: unknown word → throws with word name in message")
         void unknownWordThrowsWithWordName() {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             InvalidExpressionException ex = assertThrows(InvalidExpressionException.class,
                     () -> service.computeFromExpression("king,xyznotaword,woman", fullSpace));
             assertTrue(ex.getMessage().contains("xyznotaword"),
@@ -329,7 +329,7 @@ class MissingCoverageTest {
         @DisplayName("computeFromExpression: valid king,man,woman → returns queen")
         void validExpressionReturnsQueen() throws InvalidExpressionException {
             VectorArithmeticService service =
-                    new VectorArithmeticService(new NearestNeighborService(new CosineDistance()));
+                    new VectorArithmeticService(new NearestNeighborService(new DistanceService(new CosineDistance())));
             Optional<String> result = service.computeFromExpression("king,man,woman", fullSpace);
             assertEquals(Optional.of("queen"), result);
         }
@@ -427,7 +427,7 @@ class MissingCoverageTest {
             // which is != 0.0, so division proceeds and result is NaN.
             // This test documents the current behavior:
             // A stricter implementation would sanitize NaN.
-            assertNotNull(d); // always passes — just documents the result is a double
+            // always passes — just documents the result is a double
         }
 
         @Test
@@ -439,7 +439,7 @@ class MissingCoverageTest {
             WordVector normalWord = new WordVector("normal", normal);
             EmbeddingSpace space = new EmbeddingSpace(List.of(infWord, normalWord));
 
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             assertDoesNotThrow(() -> service.findNearest(normalWord, space, 1),
                     "NearestNeighbor must not throw even when a vector contains Infinity");
         }
@@ -467,14 +467,14 @@ class MissingCoverageTest {
         }
 
         @Test
-        @DisplayName("EmbeddingSpace with mixed-dimension entries: first entry dimension used")
-        void embeddingSpaceReportsFirstEntryDimension() {
-            EmbeddingSpace space = new EmbeddingSpace(List.of(
-                    new WordVector("dog", new double[]{1, 2, 3}),      // 3 dims
-                    new WordVector("cat", new double[]{1, 2, 3, 4})    // 4 dims — mixed
-            ));
-            // getDimension() returns first entry's dimension
-            assertEquals(3, space.getDimension());
+        @DisplayName("EmbeddingSpace rejects vectors with mismatched dimensions")
+        void embeddingSpaceRejectsMixedDimensions() {
+            assertThrows(IllegalArgumentException.class, () ->
+                new EmbeddingSpace(List.of(
+                        new WordVector("dog", new double[]{1, 2, 3}),
+                        new WordVector("cat", new double[]{1, 2, 3, 4})
+                ))
+            );
         }
     }
 
@@ -547,8 +547,7 @@ class MissingCoverageTest {
                             viewClass.getSimpleName() + " has a field of service type: " + typeName);
                 }
                 String packageName = field.getType().getPackageName();
-                assertFalse(packageName.equals("service"),
-                        viewClass.getSimpleName() + " has a field in the service package: " + typeName);
+                assertNotEquals("service", packageName, viewClass.getSimpleName() + " has a field in the service package: " + typeName);
             }
         }
 
@@ -596,7 +595,7 @@ class MissingCoverageTest {
             CentroidResult centroid = new CentroidService().compute(group);
             WordVector centroidVec = new WordVector("__centroid__", centroid.getCentroid());
 
-            NearestNeighborService service = new NearestNeighborService(new CosineDistance());
+            NearestNeighborService service = new NearestNeighborService(new DistanceService(new CosineDistance()));
             // K = 999 >> space.size() — should return all 3 words (centroid itself is not in space)
             NeighborResult result = service.findNearest(centroidVec, space, 999);
             assertEquals(3, result.getNeighbors().size(),
