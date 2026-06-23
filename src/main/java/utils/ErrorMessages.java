@@ -1,0 +1,36 @@
+package utils;
+
+public final class ErrorMessages {
+
+    private ErrorMessages() {
+        // utility class
+    }
+
+    public static String invalidK(int maxK) {
+        return "Please enter a number between 0 and " + maxK + ".";
+    }
+
+    public static String invalidWholeNumber() {
+        return "Please enter a valid whole number.";
+    }
+
+    public static String fillBothFromAndToFields() {
+        return "Please fill both From and To fields.";
+    }
+
+    public static String fillFromField() {
+        return "Please fill the From field.";
+    }
+
+    public static String fillToField() {
+        return "Please fill the To field.";
+    }
+
+    public static String wordNotFound(String word) {
+        return "Word not found in vocabulary: \"" + word + "\"";
+    }
+
+    public static String needAtLeastTwoWords() {
+        return "Please enter at least 2 words to calculate distance.";
+    }
+}
