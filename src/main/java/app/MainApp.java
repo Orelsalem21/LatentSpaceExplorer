@@ -4,6 +4,7 @@ import utils.AlertHelper;
 import utils.ButtonStyler;
 import command.ChangeMetricCommand;
 import command.CommandHistory;
+import command.ReversibleCommand;
 import command.VectorArithmeticCommand;
 import controller.*;
 import javafx.application.Application;
@@ -19,6 +20,7 @@ import view.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MainApp extends Application {
 
@@ -35,6 +37,7 @@ public class MainApp extends Application {
     private DetailsPanelView rightPanel;
     private MainView mainView;
 
+    private String                        currentMetricName = "Cosine";
     private CommandHistory               commandHistory;
     private MainController               mainController;
     private EmbeddingLoaderController    loaderController;
@@ -134,8 +137,9 @@ public class MainApp extends Application {
                 sessionCtrl.loadSession(path, leftPanel, mainController));
 
         leftPanel.setOnMetricChanged(name -> {
-            String prev = distanceService.getMetric().name();
+            String prev = currentMetricName;
             commandHistory.execute(new ChangeMetricCommand(name, prev, metricName -> {
+                currentMetricName = metricName;
                 leftPanel.setMetric(metricName);
                 mainController.onMetricChanged(metricName);
                 rightPanel.recalculateDistance();
@@ -205,14 +209,25 @@ public class MainApp extends Application {
         });
 
         rightPanel.setOnComputeDistanceMatrix(words -> {
-            try {
-                // Validate word existence FIRST before computing distance
-                wordDistanceService.validateWords(words, appState.getFullSpace());
-                List<String> lines = wordDistanceService.compute(words, appState.getFullSpace());
-                rightPanel.setDistanceMatrixResult(lines);
-            } catch (exception.WordNotFoundException e) {
-                AlertHelper.showError(e.getMessage());
-            }
+            commandHistory.execute(new ReversibleCommand(
+                () -> {
+                    try {
+                        wordDistanceService.validateWords(words, appState.getFullSpace());
+                        List<String> lines = wordDistanceService.compute(words, appState.getFullSpace());
+                        rightPanel.setDistanceMatrixResult(lines);
+                        var wordSet = new HashSet<>(words);
+                        cloud2D.setDistanceWords(wordSet);
+                        cloud3D.setDistanceWords(wordSet);
+                    } catch (exception.WordNotFoundException e) {
+                        AlertHelper.showError(e.getMessage());
+                    }
+                },
+                () -> {
+                    rightPanel.setDistanceMatrixResult(List.of());
+                    cloud2D.setDistanceWords(Set.of());
+                    cloud3D.setDistanceWords(Set.of());
+                }
+            ));
         });
 
         rightPanel.setOnArithmetic(expr ->

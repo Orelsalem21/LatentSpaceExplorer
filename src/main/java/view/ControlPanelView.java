@@ -9,6 +9,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import metric.MetricFactory;
@@ -30,7 +31,7 @@ public class ControlPanelView {
     private static final String LABEL_STYLE  = "-fx-text-fill: #212529;";
     private static final String RADIO_STYLE  = "-fx-text-fill: #212529;";
 
-    private final VBox root;
+    private final ScrollPane scrollPane;
 
     private Runnable                   onLoadFile         = () -> {};
     private Runnable                   onSaveAs           = () -> {};
@@ -57,7 +58,7 @@ public class ControlPanelView {
     private final Label     axisResult = new Label("—");
 
     public ControlPanelView() {
-        root = new VBox(12);
+        VBox root = new VBox(12);
         root.setPadding(new Insets(12));
         root.setPrefWidth(220);
         root.setStyle("-fx-background-color: #f1f3f5; -fx-border-color: #dee2e6; -fx-border-width: 0 1 0 0;");
@@ -79,6 +80,12 @@ public class ControlPanelView {
             new Separator(),
             buildModeSection()
         );
+
+        scrollPane = new ScrollPane(root);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle("-fx-background-color: #f1f3f5; -fx-background: #f1f3f5;");
     }
 
     public void setOnLoadFile(Runnable r)  { this.onLoadFile = r; }
@@ -199,7 +206,7 @@ public class ControlPanelView {
         label.setAlignment(Pos.CENTER_RIGHT);
         HBox row = new HBox(6, label, combo);
         row.setAlignment(Pos.CENTER_LEFT);
-        javafx.scene.layout.HBox.setHgrow(combo, javafx.scene.layout.Priority.ALWAYS);
+        HBox.setHgrow(combo, Priority.ALWAYS);
         return row;
     }
 
@@ -410,5 +417,5 @@ public class ControlPanelView {
     }
 
 
-    public VBox getRoot() { return root; }
+    public ScrollPane getRoot() { return scrollPane; }
     }

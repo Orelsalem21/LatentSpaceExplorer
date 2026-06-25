@@ -175,11 +175,13 @@ public class WordCloud3DView implements WordCloudView {
     public void setArithPath(List<String> path) {
         this.arithPath = path;
         updateArithPath();
+        updateMaterials();
     }
 
     public void clearArithPath() {
         this.arithPath = List.of();
         arithGroup.getChildren().clear();
+        updateMaterials();
     }
 
 
@@ -212,15 +214,6 @@ public class WordCloud3DView implements WordCloudView {
             sphere.setTranslateX(sx); sphere.setTranslateY(sy); sphere.setTranslateZ(sz);
 
             String word = p.getWord();
-            sphere.setOnMouseClicked(e -> {
-                double dx = e.getSceneX()-pressX, dy = e.getSceneY()-pressY;
-                if (dx*dx + dy*dy < 36) {
-                    if (e.isControlDown()) onWordAdded.accept(word);
-                    else                   onWordSelected.accept(word);
-                }
-                e.consume();
-            });
-
             sphereMap.put(word, sphere);
             posMap.put(word, new double[]{sx, sy, sz});
             reverseMap.put(sphere, word);
@@ -231,15 +224,16 @@ public class WordCloud3DView implements WordCloudView {
     }
 
     private void updateMaterials() {
-        boolean hasSelection = !selected.isEmpty();
+        boolean hasActiveState = !selected.isEmpty() || !neighbors.isEmpty()
+                              || !distanceWords.isEmpty() || !arithPath.isEmpty();
 
         sphereMap.forEach((word, sphere) -> {
             boolean isSel  = selected.contains(word);
             boolean isNb   = neighbors.containsKey(word);
             boolean isDist = distanceWords.contains(word);
 
-            boolean isImportant = isSel || isNb || isDist;
-            boolean shouldShow  = showAllLabels || !hasSelection || isImportant;
+            boolean isImportant = isSel || isNb || isDist || arithPath.contains(word);
+            boolean shouldShow  = showAllLabels || !hasActiveState || isImportant;
 
             sphere.setVisible(shouldShow);
             sphere.setMouseTransparent(!shouldShow);
@@ -416,6 +410,16 @@ public class WordCloud3DView implements WordCloudView {
             }
         });
         subScene.setOnMouseExited(e -> hoverLabel.setVisible(false));
+
+        subScene.setOnMouseClicked(e -> {
+            double dx = e.getSceneX() - pressX, dy = e.getSceneY() - pressY;
+            if (dx*dx + dy*dy >= 36) return;
+            if (!(e.getTarget() instanceof Sphere s)) return;
+            String word = reverseMap.get(s);
+            if (word == null) return;
+            if (e.isControlDown()) onWordAdded.accept(word);
+            else                   onWordSelected.accept(word);
+        });
 
         subScene.setOnMousePressed(e -> {
             pressX  = e.getSceneX(); pressY  = e.getSceneY();

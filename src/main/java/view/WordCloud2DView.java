@@ -240,12 +240,16 @@ public class WordCloud2DView implements WordCloudView {
     }
 
     private void drawRegularDots(GraphicsContext gc) {
-        Color dotColor = selected.isEmpty()
-            ? COLOR_DOT
-            : Color.rgb(160, 160, 160, 0.55);
+        boolean hasActiveState = !selected.isEmpty() || !neighbors.isEmpty()
+                              || !distanceWords.isEmpty() || !arithPath.isEmpty();
+        Color dotColor = hasActiveState
+            ? Color.rgb(160, 160, 160, 0.55)
+            : COLOR_DOT;
         gc.setFill(dotColor);
         for (ProjectedPoint p : points) {
-            if (selected.contains(p.getWord()) || neighbors.containsKey(p.getWord())) continue;
+            String word = p.getWord();
+            if (selected.contains(word) || neighbors.containsKey(word)
+                    || distanceWords.contains(word) || arithPath.contains(word)) continue;
             double cx = toCanvasX(p.getX());
             double cy = toCanvasY(p.getY());
             gc.fillOval(cx - POINT_RADIUS, cy - POINT_RADIUS, POINT_RADIUS * 2, POINT_RADIUS * 2);
