@@ -1,4 +1,5 @@
 import app.AppState;
+import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.input.MouseButton;
@@ -231,11 +232,10 @@ class UiAndStressTest {
             assertSame(pcaSpace, state.getSpace());
             assertEquals(List.of("king", "queen"), state.getSelectedWords());
             assertEquals(2, state.getNeighborMap().size());
-            assertTrue(state.getNeighborWords().contains("prince"));
+            assertTrue(state.getNeighborMap().containsKey("prince"));
 
             state.clearNeighbors();
             assertTrue(state.getNeighborMap().isEmpty());
-            assertTrue(state.getNeighborWords().isEmpty());
         }
     }
 
@@ -280,16 +280,13 @@ class UiAndStressTest {
                 view.setPoints(tinyPoints());
 
                 List<String> selected = new ArrayList<>();
-                List<String> added = new ArrayList<>();
                 view.setOnWordSelected(selected::add);
-                view.setOnWordAdded(added::add);
 
                 for (int i = 0; i < 100; i++) {
                     fireMouse(canvas, false);
                     fireMouse(canvas, true);
                 }
-                assertFalse(selected.isEmpty(), "Regular click should select a word");
-                assertFalse(added.isEmpty(), "Ctrl-click should add/toggle a word");
+                assertFalse(selected.isEmpty(), "Click should select a word");
             });
         }
 

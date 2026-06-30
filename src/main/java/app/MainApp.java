@@ -2,11 +2,10 @@ package app;
 
 import utils.AlertHelper;
 import utils.ButtonStyler;
-import command.ChangeMetricCommand;
 import command.CommandHistory;
 import command.ReversibleCommand;
-import command.VectorArithmeticCommand;
 import controller.*;
+import metric.MetricFactory;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -25,7 +24,6 @@ import java.util.Set;
 public class MainApp extends Application {
 
     private AppState appState;
-    private DistanceService distanceService;
     private WordDistanceService wordDistanceService;
     private NearestNeighborService neighborService;
     private CentroidService centroidService;
@@ -37,7 +35,7 @@ public class MainApp extends Application {
     private DetailsPanelView rightPanel;
     private MainView mainView;
 
-    private String                        currentMetricName = "Cosine";
+    private String                        currentMetricName = MetricFactory.DEFAULT_METRIC;
     private CommandHistory               commandHistory;
     private MainController               mainController;
     private EmbeddingLoaderController    loaderController;
@@ -53,6 +51,7 @@ public class MainApp extends Application {
         wireProjection();
         wireCommands();
         wireStaticCallbacks();
+        wireInteractionControllers();
         wireLoadListener();
 
         Scene scene = new Scene(mainView.getRoot(), 1280, 800);
@@ -71,7 +70,7 @@ public class MainApp extends Application {
         appState = new AppState();
 
         AppConfig config = new AppConfig();
-        distanceService = config.distanceService();
+        DistanceService distanceService = config.distanceService();
         wordDistanceService = new WordDistanceService(distanceService);
         neighborService = config.neighborService();
         arithmeticService = config.arithmeticService();
@@ -81,7 +80,7 @@ public class MainApp extends Application {
         cloud2D = new WordCloud2DView();
         cloud3D = new WordCloud3DView();
         leftPanel = new ControlPanelView();
-        rightPanel = new DetailsPanelView(appState);
+        rightPanel = new DetailsPanelView();
         mainView = new MainView(leftPanel, cloud2D, cloud3D, rightPanel);
 
         commandHistory = new CommandHistory();
@@ -90,13 +89,22 @@ public class MainApp extends Application {
                 appState, projectionService, mainView, cloud2D, cloud3D
         );
         loaderController = new EmbeddingLoaderController(
-                appState, projectionCtrl, new PythonEmbeddingService(), stage
+                appState, projectionCtrl, new PythonEmbeddingService(), stage, commandHistory
         );
-        sessionCtrl = new SessionController(appState, projectionCtrl, stage);
+        sessionCtrl = new SessionController(appState, projectionCtrl, stage, commandHistory);
         mainController = new MainController(
                 appState, projectionCtrl,
                 distanceService,
                 cloud2D, cloud3D, leftPanel
+        );
+
+        searchCtrl = new SearchController(appState, cloud2D, cloud3D, commandHistory, projectionCtrl);
+        neighborCtrl = new NeighborController(
+                appState, neighborService, centroidService,
+                commandHistory, cloud2D, cloud3D, rightPanel
+        );
+        arithmeticCtrl = new VectorArithmeticController(
+                appState, arithmeticService, rightPanel, cloud2D, cloud3D
         );
     }
 
@@ -134,22 +142,14 @@ public class MainApp extends Application {
         leftPanel.setOnLoadFile(loaderController::onLoadFile);
         leftPanel.setOnSaveAs(sessionCtrl::onSaveAs);
         loaderController.setOnSessionFile(path ->
-                sessionCtrl.loadSession(path, leftPanel, mainController));
+                sessionCtrl.loadSession(path, leftPanel, mainController, neighborCtrl));
 
         leftPanel.setOnMetricChanged(name -> {
             String prev = currentMetricName;
-            commandHistory.execute(new ChangeMetricCommand(name, prev, metricName -> {
-                currentMetricName = metricName;
-                leftPanel.setMetric(metricName);
-                mainController.onMetricChanged(metricName);
-                rightPanel.recalculateDistance();
-
-                if (neighborCtrl != null && !appState.getSelectedWords().isEmpty()) {
-                    appState.getSelectedWords().stream()
-                            .findFirst()
-                            .ifPresent(neighborCtrl::onWordSelected);
-                }
-            }));
+            commandHistory.execute(new ReversibleCommand(
+                    () -> applyMetric(name),
+                    () -> applyMetric(prev)
+            ));
         });
 
         appState.getSelectedWords().addListener((ListChangeListener<String>) change -> {
@@ -159,23 +159,28 @@ public class MainApp extends Application {
         });
     }
 
+    private void applyMetric(String metricName) {
+        currentMetricName = metricName;
+        leftPanel.setMetric(metricName);
+        mainController.onMetricChanged(metricName);
+        rightPanel.recalculateDistance();
+
+        if (neighborCtrl != null) {
+            neighborCtrl.restoreNeighborState(new ArrayList<>(appState.getSelectedWords()));
+        }
+    }
+
+    private void wireInteractionControllers() {
+        wireCanvasSync();
+        searchCtrl.wirePanel(rightPanel, neighborCtrl);
+        wireLivePanelCallbacks();
+    }
+
     private void wireLoadListener() {
         appState.loadedProperty().addListener((obs, o, loaded) -> {
             if (!loaded) return;
 
-            searchCtrl = new SearchController(appState, cloud2D, cloud3D, commandHistory);
-            neighborCtrl = new NeighborController(
-                    appState, neighborService, centroidService,
-                    commandHistory, cloud2D, cloud3D, rightPanel
-            );
-            arithmeticCtrl = new VectorArithmeticController(
-                    appState, arithmeticService, rightPanel, cloud2D, cloud3D
-            );
-
-            wireCanvasSync();
-            searchCtrl.wirePanel(rightPanel, neighborCtrl);
             neighborCtrl.wireCallbacks(leftPanel);
-            wireLivePanelCallbacks();
         });
     }
 
@@ -185,18 +190,10 @@ public class MainApp extends Application {
             neighborCtrl.onWordSelected(word);
             syncSelectionToClouds();
         });
-        cloud2D.setOnWordAdded(word -> {
-            searchCtrl.onWordAdded(word);
-            syncSelectionToClouds();
-        });
 
         cloud3D.setOnWordSelected(word -> {
             searchCtrl.onWordSelected(word);
             neighborCtrl.onWordSelected(word);
-            syncSelectionToClouds();
-        });
-        cloud3D.setOnWordAdded(word -> {
-            searchCtrl.onWordAdded(word);
             syncSelectionToClouds();
         });
     }
@@ -208,35 +205,33 @@ public class MainApp extends Application {
             cloud3D.setDistanceWords(words);
         });
 
-        rightPanel.setOnComputeDistanceMatrix(words -> {
-            commandHistory.execute(new ReversibleCommand(
-                () -> {
-                    try {
-                        wordDistanceService.validateWords(words, appState.getFullSpace());
-                        List<String> lines = wordDistanceService.compute(words, appState.getFullSpace());
-                        rightPanel.setDistanceMatrixResult(lines);
-                        var wordSet = new HashSet<>(words);
-                        cloud2D.setDistanceWords(wordSet);
-                        cloud3D.setDistanceWords(wordSet);
-                    } catch (exception.WordNotFoundException e) {
-                        AlertHelper.showError(e.getMessage());
-                    }
-                },
-                () -> {
-                    rightPanel.setDistanceMatrixResult(List.of());
-                    cloud2D.setDistanceWords(Set.of());
-                    cloud3D.setDistanceWords(Set.of());
+        rightPanel.setOnComputeDistanceMatrix(words -> commandHistory.execute(new ReversibleCommand(
+            () -> {
+                try {
+                    wordDistanceService.validateWords(words, appState.getFullSpace());
+                    List<String> lines = wordDistanceService.compute(words, appState.getFullSpace());
+                    rightPanel.setDistanceMatrixResult(lines);
+                    var wordSet = new HashSet<>(words);
+                    cloud2D.setDistanceWords(wordSet);
+                    cloud3D.setDistanceWords(wordSet);
+                } catch (exception.WordNotFoundException e) {
+                    AlertHelper.showError(e.getMessage());
                 }
+            },
+            () -> {
+                rightPanel.setDistanceMatrixResult(List.of());
+                cloud2D.setDistanceWords(Set.of());
+                cloud3D.setDistanceWords(Set.of());
+            }
+        )));
+
+        rightPanel.setOnArithmetic(words -> {
+            String expr = String.join(",", words);
+            commandHistory.execute(new ReversibleCommand(
+                    () -> arithmeticCtrl.onCompute(expr),
+                    arithmeticCtrl::clearResult
             ));
         });
-
-        rightPanel.setOnArithmetic(expr ->
-                commandHistory.execute(new VectorArithmeticCommand(
-                        expr,
-                        arithmeticCtrl::onCompute,
-                        arithmeticCtrl::clearResult
-                ))
-        );
     }
 
     private void syncSelectionToClouds() {

@@ -40,4 +40,12 @@ public class EmbeddingSpace {
     public boolean contains(String word) {
         return index.containsKey(word.toLowerCase());
     }
+
+    public int fingerprint() {
+        int hash = vectors.size();
+        for (WordVector wv : vectors) {
+            hash = 31 * hash + wv.getWord().hashCode();
+        }
+        return hash;
+    }
 }

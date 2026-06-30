@@ -67,9 +67,8 @@ public class WordCloud3DView implements WordCloudView {
     private final Label hoverLabel = new Label();
 
     private final PerspectiveCamera camera = new PerspectiveCamera(true);
-    private boolean            showAllLabels = false;
+    private boolean            showAllWords = false;
     private Consumer<String> onWordSelected = w -> {};
-    private Consumer<String> onWordAdded    = w -> {};
 
     public WordCloud3DView() {
         Group world = new Group(pointsGroup, linesGroup, arithGroup, textsGroup, buildAxes(), buildLights());
@@ -93,16 +92,16 @@ public class WordCloud3DView implements WordCloudView {
             "-fx-border-color:#ced4da;-fx-border-radius:3;-fx-background-radius:3;" +
             "-fx-padding:2 7;-fx-font-size:11px;-fx-text-fill:#212529;");
 
-        CheckBox showLabelsBox = new CheckBox("Show Cloud");
-        showLabelsBox.setStyle("-fx-font-size:11px;-fx-text-fill:#495057;");
-        showLabelsBox.setLayoutX(8);
-        showLabelsBox.setLayoutY(8);
-        showLabelsBox.selectedProperty().addListener((obs, o, val) -> {
-            showAllLabels = val;
+        CheckBox showAllWordsBox = new CheckBox("Show All Words");
+        showAllWordsBox.setStyle("-fx-font-size:11px;-fx-text-fill:#495057;");
+        showAllWordsBox.setLayoutX(8);
+        showAllWordsBox.setLayoutY(8);
+        showAllWordsBox.selectedProperty().addListener((obs, o, val) -> {
+            showAllWords = val;
             updateMaterials();
         });
 
-        Pane overlay = new Pane(xLabel, yLabel, zLabel, hoverLabel, showLabelsBox);
+        Pane overlay = new Pane(xLabel, yLabel, zLabel, hoverLabel, showAllWordsBox);
         overlay.setPickOnBounds(false);
 
         root = new StackPane(subScene, overlay);
@@ -131,7 +130,7 @@ public class WordCloud3DView implements WordCloudView {
     }
 
     public void setOnWordSelected(Consumer<String> h) { this.onWordSelected = h; }
-    public void setOnWordAdded(Consumer<String> h)    { this.onWordAdded    = h; }
+
 
     @Override
     public void centerOnWord(String word) {
@@ -149,6 +148,7 @@ public class WordCloud3DView implements WordCloudView {
         camera.setTranslateZ(cameraZ);
     }
 
+    @Override
     public void resetView() {
         rotateX.setAngle(20);
         rotateY.setAngle(-30);
@@ -233,7 +233,7 @@ public class WordCloud3DView implements WordCloudView {
             boolean isDist = distanceWords.contains(word);
 
             boolean isImportant = isSel || isNb || isDist || arithPath.contains(word);
-            boolean shouldShow  = showAllLabels || !hasActiveState || isImportant;
+            boolean shouldShow  = showAllWords || !hasActiveState || isImportant;
 
             sphere.setVisible(shouldShow);
             sphere.setMouseTransparent(!shouldShow);
@@ -417,8 +417,7 @@ public class WordCloud3DView implements WordCloudView {
             if (!(e.getTarget() instanceof Sphere s)) return;
             String word = reverseMap.get(s);
             if (word == null) return;
-            if (e.isControlDown()) onWordAdded.accept(word);
-            else                   onWordSelected.accept(word);
+            onWordSelected.accept(word);
         });
 
         subScene.setOnMousePressed(e -> {

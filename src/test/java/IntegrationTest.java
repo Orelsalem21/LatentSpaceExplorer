@@ -1,6 +1,6 @@
 import app.AppState;
-import command.ChangeAxesCommand;
 import command.CommandHistory;
+import command.ReversibleCommand;
 import exception.EmbeddingLoadException;
 import loader.JsonEmbeddingRepository;
 import metric.CosineDistance;
@@ -218,17 +218,24 @@ class IntegrationTest {
         }
 
         @Test
-        void changeAxesCommandCanBeUsedWithProjectionContext() {
+        void axisChangeCommandCanBeUsedWithProjectionContext() {
             ProjectionContext projectionService = new ProjectionContext(new PCAProjection());
             CommandHistory history = new CommandHistory();
             int[] axes = {0, 1};
-            history.execute(new ChangeAxesCommand(new int[]{2, 7}, new int[]{0, 1}, next -> {
-                axes[0] = next[0];
-                axes[1] = next[1];
-                try {
-                    assertEquals(pcaSpace.size(), projectionService.project(pcaSpace, axes[0], axes[1]).size());
-                } catch (exception.InvalidAxisException e) { throw new RuntimeException(e); }
-            }));
+            history.execute(new ReversibleCommand(
+                    () -> {
+                        axes[0] = 2; axes[1] = 7;
+                        try {
+                            assertEquals(pcaSpace.size(), projectionService.project(pcaSpace, axes[0], axes[1]).size());
+                        } catch (exception.InvalidAxisException e) { throw new RuntimeException(e); }
+                    },
+                    () -> {
+                        axes[0] = 0; axes[1] = 1;
+                        try {
+                            assertEquals(pcaSpace.size(), projectionService.project(pcaSpace, axes[0], axes[1]).size());
+                        } catch (exception.InvalidAxisException e) { throw new RuntimeException(e); }
+                    }
+            ));
             assertArrayEquals(new int[]{2, 7}, axes);
             history.undo();
             assertArrayEquals(new int[]{0, 1}, axes);

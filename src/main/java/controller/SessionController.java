@@ -3,6 +3,7 @@ package controller;
 import app.AppConfig;
 import app.AppState;
 import app.SessionState;
+import command.CommandHistory;
 import loader.SessionRepository;
 import utils.AlertHelper;
 import utils.ErrorMessages;
@@ -12,24 +13,26 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.List;
 
 public class SessionController {
 
-    private final AppState             appState;
-    private final ProjectionController projectionCtrl;
-    private final SessionRepository    sessionService;
-    private final Stage                stage;
+    private final AppState               appState;
+    private final SessionRepository      sessionService;
+    private final SessionStateController stateController;
+    private final Stage                  stage;
+    private final CommandHistory         commandHistory;
 
     public SessionController(
             AppState appState,
             ProjectionController projectionCtrl,
-            Stage stage
+            Stage stage,
+            CommandHistory commandHistory
     ) {
-        this.appState         = appState;
-        this.projectionCtrl   = projectionCtrl;
-        this.sessionService   = new SessionRepository();
-        this.stage            = stage;
+        this.appState        = appState;
+        this.sessionService  = new SessionRepository();
+        this.stateController = new SessionStateController(appState, projectionCtrl);
+        this.stage           = stage;
+        this.commandHistory  = commandHistory;
     }
 
     public void onSaveAs() {
@@ -43,10 +46,11 @@ public class SessionController {
         saveToPath(file.toPath());
     }
 
-    public void loadSession(Path path, ControlPanelView leftPanel, MainController mainCtrl) {
+    public void loadSession(Path path, ControlPanelView leftPanel, MainController mainCtrl, NeighborController neighborCtrl) {
         try {
             SessionState state = sessionService.load(path);
-            restoreState(state, leftPanel, mainCtrl);
+            stateController.applyState(state, leftPanel, mainCtrl, neighborCtrl);
+            commandHistory.clear();
         } catch (Exception e) {
             AlertHelper.showError(ErrorMessages.sessionLoadFailed(e.getMessage()));
         }
@@ -55,38 +59,9 @@ public class SessionController {
     private void saveToPath(Path path) {
         if (!appState.isLoaded()) return;
         try {
-            SessionState state = buildState();
-            sessionService.save(state, path);
+            sessionService.save(stateController.captureState(), path);
         } catch (Exception e) {
             AlertHelper.showError(ErrorMessages.sessionSaveFailed(e.getMessage()));
-        }
-    }
-
-    private SessionState buildState() {
-        SessionState s = new SessionState();
-        s.setSelectedWords(List.copyOf(appState.getSelectedWords()));
-        s.setMetricName(appState.metricNameProperty().get());
-        s.setAxes(projectionCtrl.getCurrentAxes());
-        s.setIs3D(projectionCtrl.is3DMode());
-        return s;
-    }
-
-    private void restoreState(SessionState state, ControlPanelView leftPanel, MainController mainCtrl) {
-        if (state.getMetricName() != null) {
-            leftPanel.setMetric(state.getMetricName());
-            mainCtrl.onMetricChanged(state.getMetricName());
-        }
-
-        if (state.getAxes() != null && state.getAxes().length >= 2) {
-            leftPanel.setAxes(state.getAxes());
-            projectionCtrl.onAxesChanged(state.getAxes());
-        }
-
-        leftPanel.setMode(state.isIs3D());
-        projectionCtrl.onModeChanged(state.isIs3D());
-
-        if (state.getSelectedWords() != null && !state.getSelectedWords().isEmpty()) {
-            appState.getSelectedWords().setAll(state.getSelectedWords());
         }
     }
 }

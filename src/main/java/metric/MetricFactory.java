@@ -11,11 +11,13 @@ import java.util.Set;
  */
 public class MetricFactory {
 
+    public static final String DEFAULT_METRIC = "Cosine";
+
     private static final Map<String, DistanceMetric> METRICS = new LinkedHashMap<>();
 
     static {
-        METRICS.put("Cosine",    new CosineDistance());
-        METRICS.put("Euclidean", new EuclideanDistance());
+        METRICS.put(DEFAULT_METRIC, new CosineDistance());
+        METRICS.put("Euclidean",    new EuclideanDistance());
     }
 
     /**

@@ -29,9 +29,10 @@ public class NeighborController {
     private final WordCloudView     cloud3D;
     private final DetailsPanelView  rightPanel;
 
-    private int              currentK    = 5;
-    private String           currentWord = null;  // null = centroid mode
-    private ControlPanelView leftPanel   = null;
+    private int              currentK             = 5;
+    private String           currentWord          = null;  // null = centroid mode
+    private List<String>     currentCentroidWords = List.of();
+    private ControlPanelView leftPanel            = null;
 
     public NeighborController(
             AppState appState,
@@ -57,17 +58,20 @@ public class NeighborController {
         leftPanel.setMaxK(appState.getFullSpace().size());
 
         leftPanel.setOnKChanged(k -> {
-            leftPanel.setK(k);
-            onKChanged(k);
+            int prevK = currentK;
+            commandHistory.execute(new ReversibleCommand(
+                    () -> { leftPanel.setK(k); onKChanged(k); },
+                    () -> { leftPanel.setK(prevK); onKChanged(prevK); }
+            ));
         });
 
-        rightPanel.setOnComputeCentroid(() -> {
-            ArrayList<String> words = new ArrayList<>(appState.getSelectedWords());
+        rightPanel.setOnComputeCentroid(words -> {
+            List<String> wordsCopy = new ArrayList<>(words);
 
             commandHistory.execute(new ReversibleCommand(
                     () -> {
                         this.currentWord = null;   // enter centroid mode
-                        onComputeCentroid(words);
+                        onComputeCentroid(wordsCopy);
                     },
                     this::clearCentroid
             ));
@@ -77,12 +81,29 @@ public class NeighborController {
 
     public void onWordSelected(String word) {
         this.currentWord = word;
+        rightPanel.setCentroidStatus("—");
         if (appState.isLoaded()) doFind();
     }
 
     public void reset() {
-        this.currentK    = 5;
-        this.currentWord = null;
+        this.currentK             = 5;
+        this.currentWord          = null;
+        this.currentCentroidWords = List.of();
+    }
+
+    public void restoreNeighborState(List<String> selectedWords) {
+        if (selectedWords == null || selectedWords.isEmpty()) {
+            currentWord = null;
+            clearCentroid();
+            return;
+        }
+
+        if (selectedWords.size() == 1) {
+            onWordSelected(selectedWords.getFirst());
+        } else {
+            currentWord = null;
+            onComputeCentroid(selectedWords);
+        }
     }
 
     public void onCustomAxisWords(String fromWord, String toWord) {
@@ -113,14 +134,15 @@ public class NeighborController {
         this.currentK = k;
 
         if (currentWord != null) {
-            doFind();                                                      // single-word mode
-        } else if (!appState.getSelectedWords().isEmpty()) {
-            onComputeCentroid(new ArrayList<>(appState.getSelectedWords())); // centroid mode
+            doFind();                                  // single-word mode
+        } else if (!currentCentroidWords.isEmpty()) {
+            onComputeCentroid(currentCentroidWords);   // centroid mode
         }
     }
 
 
     public void clearCentroid() {
+        this.currentCentroidWords = List.of();
         appState.clearNeighbors();
         syncNeighbors(Map.of());
         rightPanel.setCentroidStatus("—");
@@ -132,6 +154,8 @@ public class NeighborController {
                 rightPanel.setCentroidStatus("No words selected");
                 return;
             }
+
+            this.currentCentroidWords = List.copyOf(words);
 
             List<WordVector> wordVectors = words.stream()
                     .map(w -> appState.getFullSpace().find(w))

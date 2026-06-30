@@ -49,4 +49,9 @@ public final class ErrorMessages {
     public static String unknownMetric(String name) {
         return "Unknown metric: " + name;
     }
+
+    public static String sessionDataMismatch() {
+        return "This session was saved against different embedding data. "
+                + "Selected words, axes, or neighbors may not match the data currently loaded.";
+    }
 }

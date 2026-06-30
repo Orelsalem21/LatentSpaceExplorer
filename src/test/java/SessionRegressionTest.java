@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *  4. Custom Axis Projection – poor → rich
  *  5. Nearest-neighbor service for both axis words (Custom Axis)
  *  6. Metric switching updates distance results in real time
- *  7. VectorArithmeticCommand undo / redo lifecycle
+ *  7. Vector arithmetic command undo / redo lifecycle
  *  8. Distance words are highlighted separately (purple) – service correctness
  *  9. Arith-path words must all exist in the projected space
  * 10. Reset state – selected words, distance result, arith path cleared
@@ -398,11 +398,11 @@ class SessionRegressionTest {
         }
     }
 
-    // ── 7. VectorArithmeticCommand undo / redo ────────────────────────────────
+    // ── 7. Vector arithmetic command undo / redo ──────────────────────────────
 
     @Nested
-    @DisplayName("7 · VectorArithmeticCommand – undo / redo lifecycle")
-    class VectorArithmeticCommandTests {
+    @DisplayName("7 · Vector arithmetic command – undo / redo lifecycle")
+    class VectorArithmeticUndoRedoTests {
 
         @Test
         @DisplayName("Execute sets result; undo clears it; redo restores it")
@@ -414,10 +414,9 @@ class SessionRegressionTest {
             String[] currentResult = {null};
 
             String expr = "king,man,woman";
-            Command cmd = new VectorArithmeticCommand(
-                    expr,
-                    e -> {
-                        String[] parts = e.split(",");
+            Command cmd = new ReversibleCommand(
+                    () -> {
+                        String[] parts = expr.split(",");
                         arithmeticService.compute(word(parts[0]), word(parts[1]), word(parts[2]), fullSpace)
                                 .ifPresent(r -> currentResult[0] = r);
                     },
@@ -440,13 +439,13 @@ class SessionRegressionTest {
             CommandHistory history = new CommandHistory();
             String[] result = {null};
 
-            history.execute(new VectorArithmeticCommand("king,man,woman",
-                    e -> result[0] = "queen", () -> result[0] = null));
+            history.execute(new ReversibleCommand(
+                    () -> result[0] = "queen", () -> result[0] = null));
             history.undo();
             assertTrue(history.canRedo());
 
-            history.execute(new VectorArithmeticCommand("paris,france,italy",
-                    e -> result[0] = "rome", () -> result[0] = null));
+            history.execute(new ReversibleCommand(
+                    () -> result[0] = "rome", () -> result[0] = null));
             assertFalse(history.canRedo(), "Redo stack must be cleared after new command");
             assertEquals("rome", result[0]);
         }

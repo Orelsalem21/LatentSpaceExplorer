@@ -6,12 +6,12 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import metric.MetricFactory;
 import model.EmbeddingSpace;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class AppState {
 
@@ -22,7 +22,7 @@ public class AppState {
     private final ObservableList<String> selectedWords = FXCollections.observableArrayList();
     private final StringProperty distanceResult = new SimpleStringProperty("—");
     private final StringProperty coordinates = new SimpleStringProperty("");
-    private final StringProperty metricName = new SimpleStringProperty("Cosine");
+    private final StringProperty metricName = new SimpleStringProperty(MetricFactory.DEFAULT_METRIC);
 
     private String xAxisLabel = "PC1";
     private String yAxisLabel = "PC2";
@@ -94,10 +94,6 @@ public class AppState {
 
     public Map<String, Double> getNeighborMap() {
         return neighborMap;
-    }
-
-    public Set<String> getNeighborWords() {
-        return neighborMap.keySet();
     }
 
     public void setNeighborMap(Map<String, Double> map) {

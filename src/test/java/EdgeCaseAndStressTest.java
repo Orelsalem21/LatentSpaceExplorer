@@ -1,8 +1,5 @@
-import command.ChangeAxesCommand;
-import command.ChangeMetricCommand;
 import command.CommandHistory;
 import command.ReversibleCommand;
-import command.VectorArithmeticCommand;
 import exception.EmbeddingLoadException;
 import exception.InvalidAxisException;
 import loader.JsonEmbeddingRepository;
@@ -781,7 +778,7 @@ class EdgeCaseAndStressTest {
         void executeAddsToHistoryAndCanUndo() {
             CommandHistory history = new CommandHistory();
             assertFalse(history.canUndo());
-            history.execute(new ChangeAxesCommand(new int[]{1, 2}, new int[]{0, 1}, axes -> {}));
+            history.execute(new ReversibleCommand(() -> {}, () -> {}));
             assertTrue(history.canUndo());
             assertFalse(history.canRedo());
         }
@@ -790,8 +787,9 @@ class EdgeCaseAndStressTest {
         void undoRestoresPreviousAxes() {
             int[] current = {0, 1};
             CommandHistory history = new CommandHistory();
-            history.execute(new ChangeAxesCommand(new int[]{2, 3}, new int[]{0, 1},
-                    axes -> { current[0] = axes[0]; current[1] = axes[1]; }));
+            history.execute(new ReversibleCommand(
+                    () -> { current[0] = 2; current[1] = 3; },
+                    () -> { current[0] = 0; current[1] = 1; }));
             assertArrayEquals(new int[]{2, 3}, current);
             history.undo();
             assertArrayEquals(new int[]{0, 1}, current);
@@ -802,8 +800,9 @@ class EdgeCaseAndStressTest {
         void redoReappliesCommand() {
             int[] current = {0, 1};
             CommandHistory history = new CommandHistory();
-            history.execute(new ChangeAxesCommand(new int[]{2, 3}, new int[]{0, 1},
-                    axes -> { current[0] = axes[0]; current[1] = axes[1]; }));
+            history.execute(new ReversibleCommand(
+                    () -> { current[0] = 2; current[1] = 3; },
+                    () -> { current[0] = 0; current[1] = 1; }));
             history.undo();
             assertArrayEquals(new int[]{0, 1}, current);
             history.redo();
@@ -817,10 +816,12 @@ class EdgeCaseAndStressTest {
         }
 
         @Test
-        void changeMetricCommandUndoRestoresPreviousMetric() {
+        void metricChangeCommandUndoRestoresPreviousMetric() {
             String[] current = {"Cosine"};
             CommandHistory history = new CommandHistory();
-            history.execute(new ChangeMetricCommand("Euclidean", "Cosine", m -> current[0] = m));
+            history.execute(new ReversibleCommand(
+                    () -> current[0] = "Euclidean",
+                    () -> current[0] = "Cosine"));
             assertEquals("Euclidean", current[0]);
             history.undo();
             assertEquals("Cosine", current[0]);
@@ -842,13 +843,12 @@ class EdgeCaseAndStressTest {
         }
 
         @Test
-        void vectorArithmeticCommandUndoClearsResult() {
+        void arithmeticCommandUndoClearsResult() {
             String[] last = {""};
             boolean[] cleared = {false};
             CommandHistory history = new CommandHistory();
-            history.execute(new VectorArithmeticCommand(
-                    "king,man,woman",
-                    expr -> last[0] = expr,
+            history.execute(new ReversibleCommand(
+                    () -> last[0] = "king,man,woman",
                     () -> cleared[0] = true));
             assertEquals("king,man,woman", last[0]);
             history.undo();
@@ -895,7 +895,7 @@ class EdgeCaseAndStressTest {
             int[] callCount = {0};
             CommandHistory history = new CommandHistory();
             history.setOnChanged(() -> callCount[0]++);
-            history.execute(new ChangeAxesCommand(new int[]{1, 2}, new int[]{0, 1}, axes -> {}));
+            history.execute(new ReversibleCommand(() -> {}, () -> {}));
             history.undo();
             history.redo();
             assertEquals(3, callCount[0]);
@@ -928,9 +928,10 @@ class EdgeCaseAndStressTest {
             CommandHistory history = new CommandHistory();
             for (int i = 1; i <= 100; i++) {
                 int prev = val[0];
-                history.execute(new ChangeAxesCommand(
-                        new int[]{i}, new int[]{prev},
-                        axes -> val[0] = axes[0]));
+                int next = i;
+                history.execute(new ReversibleCommand(
+                        () -> val[0] = next,
+                        () -> val[0] = prev));
             }
             assertEquals(100, val[0]);
             for (int i = 0; i < 50; i++) history.undo();
@@ -1101,9 +1102,9 @@ class EdgeCaseAndStressTest {
             ProjectionContext service = new ProjectionContext(new PCAProjection());
             int[] axes = {0, 1};
             CommandHistory history = new CommandHistory();
-            history.execute(new ChangeAxesCommand(
-                    new int[]{2, 3}, new int[]{0, 1},
-                    a -> { axes[0] = a[0]; axes[1] = a[1]; }));
+            history.execute(new ReversibleCommand(
+                    () -> { axes[0] = 2; axes[1] = 3; },
+                    () -> { axes[0] = 0; axes[1] = 1; }));
             assertEquals(pcaSpace.size(), service.project(pcaSpace, axes[0], axes[1]).size());
             history.undo();
             assertEquals(pcaSpace.size(), service.project(pcaSpace, axes[0], axes[1]).size());

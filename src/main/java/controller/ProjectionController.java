@@ -1,7 +1,6 @@
 package controller;
 
 import app.AppState;
-import command.ChangeAxesCommand;
 import command.CommandHistory;
 import command.ReversibleCommand;
 import utils.AlertHelper;
@@ -17,6 +16,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
@@ -33,6 +33,8 @@ public class ProjectionController {
     private int     currentY = 1;
     private int     currentZ = 2;
     private boolean is3D     = false;
+
+    private List<ProjectedPoint> currentPoints = List.of();
 
     public ProjectionController(
             AppState appState,
@@ -57,10 +59,10 @@ public class ProjectionController {
         leftPanel.setOnAxesChanged(axes -> {
             int[] prev = getCurrentAxes();
 
-            commandHistory.execute(new ChangeAxesCommand(axes, prev, appliedAxes -> {
-                leftPanel.setAxes(appliedAxes);
-                onAxesChanged(appliedAxes);
-            }));
+            commandHistory.execute(new ReversibleCommand(
+                    () -> { leftPanel.setAxes(axes); onAxesChanged(axes); },
+                    () -> { leftPanel.setAxes(prev); onAxesChanged(prev); }
+            ));
         });
 
         leftPanel.setOnModeChanged(is3D -> {
@@ -162,7 +164,7 @@ public class ProjectionController {
             projectionService.usePCAProjection();
             mainView.show2D();
             activeView().setAxisLabels("PC1", "PC2", "PC3");
-            cloud2D.clearHighlights();
+            cloud2D.resetView();
         }
 
         cloud2D.setSelected(Set.of());
@@ -179,7 +181,11 @@ public class ProjectionController {
         currentY = axes[1];
         currentZ = axes.length > 2 ? axes[2] : 2;
 
-        projectionService.usePCAProjection();
+        if (is3D) {
+            projectionService.useThreeDimensionalProjection(currentZ);
+        } else {
+            projectionService.usePCAProjection();
+        }
         reprojectAndDraw();
     }
 
@@ -207,6 +213,7 @@ public class ProjectionController {
 
             List<ProjectedPoint> points =
                     projectionService.project(appState.getFullSpace(), currentX, currentY);
+            currentPoints = points;
 
             String customLabel = fromWord + " → " + toWord;
             String yLabel      = "PC" + (currentY + 1);
@@ -232,6 +239,7 @@ public class ProjectionController {
 
             List<ProjectedPoint> points =
                     projectionService.project(projSpace, currentX, currentY);
+            currentPoints = points;
 
             String xLabel = "PC" + (currentX + 1);
             String yLabel = "PC" + (currentY + 1);
@@ -242,18 +250,18 @@ public class ProjectionController {
             activeView().setAxisLabels(xLabel, yLabel, zLabel);
             activeView().setPoints(points);
 
-            if (!is3D) appState.getSelectedWords().stream().findFirst().ifPresent(word ->
-                        cloud2D.findPoint(word).ifPresentOrElse(
-                                p -> appState.coordinatesProperty().set(
-                                        String.format(
-                                                "%s (X): %.4f   %s (Y): %.4f",
-                                                xLabel, p.getX(),
-                                                yLabel, p.getY()
-                                        )
-                                ),
-                                () -> appState.coordinatesProperty().set("")
-                        )
-                );
+            appState.getSelectedWords().stream().findFirst().ifPresent(word ->
+                    findPoint(word).ifPresentOrElse(
+                            p -> appState.coordinatesProperty().set(
+                                    is3D
+                                        ? String.format("%s (X): %.4f   %s (Y): %.4f\n%s (Z): %.4f",
+                                                xLabel, p.getX(), yLabel, p.getY(), zLabel, p.getZ())
+                                        : String.format("%s (X): %.4f   %s (Y): %.4f",
+                                                xLabel, p.getX(), yLabel, p.getY())
+                            ),
+                            () -> appState.coordinatesProperty().set("")
+                    )
+            );
         } catch (InvalidAxisException e) {
             AlertHelper.showError(e.getMessage());
         }
@@ -262,6 +270,10 @@ public class ProjectionController {
 
     public int[] getCurrentAxes() {
         return new int[]{currentX, currentY, currentZ};
+    }
+
+    public Optional<ProjectedPoint> findPoint(String word) {
+        return currentPoints.stream().filter(p -> p.getWord().equals(word)).findFirst();
     }
 
     public boolean is3DMode() {

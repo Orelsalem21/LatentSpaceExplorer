@@ -55,12 +55,12 @@ public class MainController {
         appState.coordinatesProperty().set("");
         appState.distanceResultProperty().set("—");
         appState.clearNeighbors();
-        appState.setMetricName("Cosine");
+        appState.setMetricName(MetricFactory.DEFAULT_METRIC);
     }
 
     private void resetMetric() {
         try {
-            distanceService.setMetric(MetricFactory.get("Cosine"));
+            distanceService.setMetric(MetricFactory.get(MetricFactory.DEFAULT_METRIC));
         } catch (UnknownMetricException ignored) {
         }
     }

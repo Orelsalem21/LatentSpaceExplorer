@@ -1,7 +1,7 @@
 import app.AppState;
-import command.ChangeAxesCommand;
 import command.Command;
 import command.CommandHistory;
+import command.ReversibleCommand;
 import exception.EmbeddingLoadException;
 import loader.JsonEmbeddingRepository;
 import metric.CosineDistance;
@@ -333,13 +333,13 @@ class RequirementsTest {
         }
 
         @Test
-        void changeAxesCommandAppliesNewAndPreviousAxes() {
+        void axisChangeCommandAppliesNewAndPreviousAxes() {
             AtomicInteger x = new AtomicInteger(0);
             AtomicInteger y = new AtomicInteger(1);
-            Command command = new ChangeAxesCommand(new int[]{2, 7}, new int[]{0, 1}, axes -> {
-                x.set(axes[0]);
-                y.set(axes[1]);
-            });
+            Command command = new ReversibleCommand(
+                    () -> { x.set(2); y.set(7); },
+                    () -> { x.set(0); y.set(1); }
+            );
             command.execute();
             assertEquals(2, x.get());
             assertEquals(7, y.get());

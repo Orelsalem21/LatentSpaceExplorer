@@ -2,6 +2,7 @@ package controller;
 
 import app.AppConfig;
 import app.AppState;
+import command.CommandHistory;
 import exception.EmbeddingLoadException;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
@@ -20,17 +21,19 @@ public class EmbeddingLoaderController {
     private final ProjectionController   projectionController;
     private final PythonEmbeddingService pythonService;
     private final Stage                  stage;
+    private final CommandHistory         commandHistory;
 
     private final EmbeddingRepository jsonRepository = new JsonEmbeddingRepository();
     private java.util.function.Consumer<java.nio.file.Path> onSessionFile = p -> {};
     private Runnable onPythonStart = () -> {};
     private Runnable onPythonDone  = () -> {};
 
-    public EmbeddingLoaderController(AppState appState, ProjectionController projectionController, PythonEmbeddingService pythonService, Stage stage) {
+    public EmbeddingLoaderController(AppState appState, ProjectionController projectionController, PythonEmbeddingService pythonService, Stage stage, CommandHistory commandHistory) {
         this.appState             = appState;
         this.projectionController = projectionController;
         this.pythonService        = pythonService;
         this.stage                = stage;
+        this.commandHistory       = commandHistory;
     }
 
     public void setOnSessionFile(java.util.function.Consumer<Path> handler) { this.onSessionFile = handler; }
@@ -57,10 +60,11 @@ public class EmbeddingLoaderController {
         try {
             EmbeddingRepository repo = EmbeddingRepositoryFactory.forFile(path);
             var space = repo.load(path);
-            appState.setFullSpace(null);
+            appState.setFullSpace(space);
             appState.setSpace(space);
             projectionController.resetToDefaultProjection();
             projectionController.reprojectAndDraw();
+            commandHistory.clear();
         } catch (EmbeddingLoadException e) {
             AlertHelper.showError(e.getMessage());
         }
@@ -102,6 +106,7 @@ public class EmbeddingLoaderController {
 
             projectionController.resetToDefaultProjection();
             projectionController.reprojectAndDraw();
+            commandHistory.clear();
         } catch (EmbeddingLoadException e) {
             AlertHelper.showError(e.getMessage());
         }

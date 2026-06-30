@@ -6,7 +6,6 @@ import app.AppState;
 import command.CommandHistory;
 import command.ReversibleCommand;
 import view.DetailsPanelView;
-import view.WordCloud2DView;
 import view.WordCloudView;
 
 import java.util.ArrayList;
@@ -18,26 +17,40 @@ import java.util.Set;
 
 public class SearchController {
 
-    private final AppState       appState;
-    private final CommandHistory commandHistory;
+    private final AppState             appState;
+    private final CommandHistory       commandHistory;
+    private final ProjectionController projectionCtrl;
 
-    private final WordCloud2DView cloud2D;  // concrete — needs centerOnWord, findPoint
+    private final WordCloudView   cloud2D;
     private final WordCloudView   cloud3D;
 
     public SearchController(
             AppState appState,
-            WordCloud2DView cloud2D,
+            WordCloudView cloud2D,
             WordCloudView cloud3D,
-            CommandHistory commandHistory
+            CommandHistory commandHistory,
+            ProjectionController projectionCtrl
     ) {
         this.appState       = appState;
         this.cloud2D        = cloud2D;
         this.cloud3D        = cloud3D;
         this.commandHistory = commandHistory;
+        this.projectionCtrl = projectionCtrl;
     }
 
 
     public void wirePanel(DetailsPanelView rightPanel, NeighborController neighborCtrl) {
+        rightPanel.setSelectedWordsItems(appState.getSelectedWords());
+        rightPanel.setNeighborsItems(appState.getNeighbors());
+
+        rightPanel.setDistanceResultText(appState.distanceResultProperty().get());
+        rightPanel.setCoordinatesText(appState.coordinatesProperty().get());
+        rightPanel.setMetricActiveText(appState.metricNameProperty().get());
+
+        appState.distanceResultProperty().addListener((obs, o, n) -> rightPanel.setDistanceResultText(n));
+        appState.coordinatesProperty().addListener((obs, o, n) -> rightPanel.setCoordinatesText(n));
+        appState.metricNameProperty().addListener((obs, o, n) -> rightPanel.setMetricActiveText(n));
+
         rightPanel.setOnSearch(query -> {
             String normalized = query.trim().toLowerCase();
 
@@ -47,8 +60,6 @@ public class SearchController {
                 neighborCtrl.onWordSelected(normalized);
             }
         });
-
-        rightPanel.setOnWordAdded(this::onWordAdded);
 
         rightPanel.setOnCenterWord(word -> {
             onWordSelected(word);
@@ -71,29 +82,20 @@ public class SearchController {
         ));
     }
 
-    public void onWordAdded(String word) {
-        SelectionSnapshot prev = snapshot();
-
-        commandHistory.execute(new ReversibleCommand(
-                () -> applyWordAdded(word),
-                () -> restore(prev)
-        ));
-    }
-
     public void onSearch(String query) {
         if (query.isBlank() || !appState.isLoaded()) return;
 
         String normalized = query.trim().toLowerCase();
+        SelectionSnapshot prev = snapshot();
 
         if (!appState.getSpace().contains(normalized)) {
             AlertHelper.showError(new WordNotFoundException(query).getMessage());
-            appState.getSelectedWords().clear();
-            appState.clearNeighbors();
-            syncClouds(Set.of(), Map.of());
+            commandHistory.execute(new ReversibleCommand(
+                    this::applyClearedSelection,
+                    () -> restore(prev)
+            ));
             return;
         }
-
-        SelectionSnapshot prev = snapshot();
 
         commandHistory.execute(new ReversibleCommand(
                 () -> applySingleSelection(normalized),
@@ -101,6 +103,12 @@ public class SearchController {
         ));
     }
 
+
+    private void applyClearedSelection() {
+        appState.getSelectedWords().clear();
+        appState.clearNeighbors();
+        syncClouds(Set.of(), Map.of());
+    }
 
     private void applySingleSelection(String word) {
         cloud2D.clearArithPath();
@@ -115,29 +123,8 @@ public class SearchController {
         updateCoordinates(word);
     }
 
-    private void applyWordAdded(String word) {
-        String normalized = word.toLowerCase();
-        List<String> current = new ArrayList<>(appState.getSelectedWords());
-
-        if (current.contains(normalized)) {
-            current.remove(normalized);
-        } else {
-            current.add(normalized);
-        }
-
-        appState.getSelectedWords().setAll(current);
-
-        cloud2D.setSelected(new HashSet<>(current));
-
-        appState.clearNeighbors();
-        cloud2D.setNeighbors(Map.of());
-        cloud3D.setNeighbors(Map.of());
-
-        appState.coordinatesProperty().set("");
-    }
-
     private void updateCoordinates(String word) {
-        cloud2D.findPoint(word).ifPresentOrElse(
+        projectionCtrl.findPoint(word).ifPresentOrElse(
                 p -> appState.coordinatesProperty().set(
                         String.format(
                                 "%s (X): %.4f   %s (Y): %.4f",

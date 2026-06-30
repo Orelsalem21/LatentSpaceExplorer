@@ -48,7 +48,6 @@ public class WordCloud2DView implements WordCloudView {
     private double dragStartX, dragStartY;
 
     private Consumer<String> onWordSelected = w -> {};
-    private Consumer<String> onWordAdded    = w -> {};
 
     private final javafx.scene.control.Label hoverLabel = new javafx.scene.control.Label();
 
@@ -99,7 +98,7 @@ public class WordCloud2DView implements WordCloudView {
     public void setPoints(List<ProjectedPoint> points) {
         this.points = new ArrayList<>(points);
         resetBounds();
-        redraw(); // keeps existing selected/neighbors
+        redraw();
     }
 
     public void clearHighlights() {
@@ -155,7 +154,6 @@ public class WordCloud2DView implements WordCloudView {
     }
 
     public void setOnWordSelected(Consumer<String> h) { this.onWordSelected = h; }
-    public void setOnWordAdded(Consumer<String> h)    { this.onWordAdded    = h; }
     public void setStatusMessage(String msg)          { this.statusMessage  = msg; redraw(); }
 
     /** Pan the canvas so that the given word appears at the center. */
@@ -394,8 +392,7 @@ public class WordCloud2DView implements WordCloudView {
             if (points.isEmpty()) return;
             String word = findNearestWord(e.getX(), e.getY());
             if (word == null) return;
-            if (e.isControlDown()) onWordAdded.accept(word);
-            else                   onWordSelected.accept(word);
+            onWordSelected.accept(word);
         });
     }
 

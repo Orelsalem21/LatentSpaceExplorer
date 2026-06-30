@@ -33,29 +33,23 @@ Required packages:
 pip install gensim numpy scikit-learn
 ```
 
-## Generate Embeddings
-
-```bash
-cd python
-python embedder.py
-```
-
-This generates:
-
-```text
-full_vectors.json
-pca_vectors.json
-```
-
 ## Run
-
-Using Maven:
 
 ```bash
 mvn javafx:run
 ```
 
-Or run the project directly from IntelliJ IDEA.
+On first launch, if `python/pca_vectors.json` does not exist yet, the app runs `python/embedder.py`
+automatically (downloading the GloVe model and computing PCA) before opening the main window — this
+can take a few minutes. Every later launch finds the generated `full_vectors.json` and
+`pca_vectors.json` already on disk and loads instantly.
+
+To generate the embeddings yourself ahead of time instead of waiting on first launch:
+
+```bash
+cd python
+python embedder.py
+```
 
 ## Architecture
 

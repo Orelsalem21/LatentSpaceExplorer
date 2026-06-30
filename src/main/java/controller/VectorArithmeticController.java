@@ -9,6 +9,7 @@ import view.DetailsPanelView;
 import view.WordCloud2DView;
 import view.WordCloud3DView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class VectorArithmeticController {
@@ -49,7 +50,7 @@ public class VectorArithmeticController {
         try {
             arithmeticService.computeFromExpression(expr, appState.getFullSpace())
                     .ifPresentOrElse(
-                            result -> showResult(expr, result),
+                            result -> showResult(parseWords(expr), result),
                             () -> {
                                 AlertHelper.showWarning(ErrorMessages.noArithmeticResult());
                                 rightPanel.setArithmeticResult("—");
@@ -62,17 +63,20 @@ public class VectorArithmeticController {
         }
     }
 
-
-    private void showResult(String expr, String result) {
-        rightPanel.setArithmeticResult("→ " + result);
-
+    private List<String> parseWords(String expr) {
         String[] parts = expr.split(",");
-        List<String> path = List.of(
+        return List.of(
                 parts[0].trim().toLowerCase(),
                 parts[1].trim().toLowerCase(),
-                parts[2].trim().toLowerCase(),
-                result
+                parts[2].trim().toLowerCase()
         );
+    }
+
+    private void showResult(List<String> words, String result) {
+        rightPanel.setArithmeticResult("→ " + result);
+
+        List<String> path = new ArrayList<>(words);
+        path.add(result);
 
         cloud2D.setArithPath(path);
         cloud3D.setArithPath(path);

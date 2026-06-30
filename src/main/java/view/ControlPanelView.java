@@ -195,7 +195,7 @@ public class ControlPanelView {
 
     public void resetControls(boolean is3D) {
         setAxes(new int[]{0, 1, 2});
-        setMetric("Cosine");
+        setMetric(MetricFactory.DEFAULT_METRIC);
         setMode(is3D);
         setK(5);
     }
