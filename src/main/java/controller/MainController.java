@@ -89,7 +89,7 @@ public class MainController {
         try {
             var metric = MetricFactory.get(name);
             distanceService.setMetric(metric);
-            appState.setMetricName(metric.name());
+            appState.setMetricName(name);
             onSelectionChanged(new ArrayList<>(appState.getSelectedWords()));
         } catch (UnknownMetricException e) {
             AlertHelper.showError(e.getMessage());

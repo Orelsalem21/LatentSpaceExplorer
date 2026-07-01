@@ -9,7 +9,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import loader.EmbeddingRepository;
 import loader.EmbeddingRepositoryFactory;
-import loader.JsonEmbeddingRepository;
 import utils.AlertHelper;
 import service.PythonEmbeddingService;
 import java.io.File;
@@ -23,7 +22,6 @@ public class EmbeddingLoaderController {
     private final Stage                  stage;
     private final CommandHistory         commandHistory;
 
-    private final EmbeddingRepository jsonRepository = new JsonEmbeddingRepository();
     private java.util.function.Consumer<java.nio.file.Path> onSessionFile = p -> {};
     private Runnable onPythonStart = () -> {};
     private Runnable onPythonDone  = () -> {};
@@ -99,8 +97,9 @@ public class EmbeddingLoaderController {
 
     private void loadWithFullSpace(Path pcaFile, Path fullFile) {
         try {
-            var fullSpace = fullFile.toFile().exists() ? jsonRepository.load(fullFile) : null;
-            var pcaSpace  = jsonRepository.load(pcaFile);
+            EmbeddingRepository repo = EmbeddingRepositoryFactory.forFile(pcaFile);
+            var fullSpace = fullFile.toFile().exists() ? repo.load(fullFile) : null;
+            var pcaSpace  = repo.load(pcaFile);
             if (fullSpace != null) appState.setFullSpace(fullSpace);
             appState.setSpace(pcaSpace);
 

@@ -53,9 +53,13 @@ public class SessionStateController {
         leftPanel.setMode(state.isIs3D());
         projectionCtrl.onModeChanged(state.isIs3D());
 
-        List<String> selectedWords = state.getSelectedWords();
+        List<String> selectedWords = state.getSelectedWords() == null
+                ? List.of()
+                : state.getSelectedWords().stream()
+                        .filter(appState.getFullSpace()::contains)
+                        .toList();
 
-        if (selectedWords == null || selectedWords.isEmpty()) {
+        if (selectedWords.isEmpty()) {
             appState.getSelectedWords().clear();
         } else {
             appState.getSelectedWords().setAll(selectedWords);

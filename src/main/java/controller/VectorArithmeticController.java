@@ -48,9 +48,10 @@ public class VectorArithmeticController {
         }
 
         try {
+            List<String> words = arithmeticService.parseWords(expr);
             arithmeticService.computeFromExpression(expr, appState.getFullSpace())
                     .ifPresentOrElse(
-                            result -> showResult(parseWords(expr), result),
+                            result -> showResult(words, result),
                             () -> {
                                 AlertHelper.showWarning(ErrorMessages.noArithmeticResult());
                                 rightPanel.setArithmeticResult("—");
@@ -61,15 +62,6 @@ public class VectorArithmeticController {
             AlertHelper.showError(e.getMessage());
             clearPath();
         }
-    }
-
-    private List<String> parseWords(String expr) {
-        String[] parts = expr.split(",");
-        return List.of(
-                parts[0].trim().toLowerCase(),
-                parts[1].trim().toLowerCase(),
-                parts[2].trim().toLowerCase()
-        );
     }
 
     private void showResult(List<String> words, String result) {

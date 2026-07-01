@@ -18,8 +18,7 @@ public class VectorArithmeticService {
         this.neighborService = neighborService;
     }
 
-    public Optional<String> computeFromExpression(String expr, EmbeddingSpace space)
-            throws InvalidExpressionException {
+    public List<String> parseWords(String expr) throws InvalidExpressionException {
         String[] parts = expr.split(",");
         if (parts.length != 3)
             throw new InvalidExpressionException("Expression must have exactly 3 words: A, B, C");
@@ -35,6 +34,14 @@ public class VectorArithmeticService {
         if (!missing.isEmpty())
             throw new InvalidExpressionException(
                     "⚠ Missing word" + (missing.size() > 1 ? "s" : "") + ": " + String.join(", ", missing));
+
+        return List.of(wa, wb, wc);
+    }
+
+    public Optional<String> computeFromExpression(String expr, EmbeddingSpace space)
+            throws InvalidExpressionException {
+        List<String> words = parseWords(expr);
+        String wa = words.get(0), wb = words.get(1), wc = words.get(2);
 
         List<String> notFound = new ArrayList<>();
         var a = space.find(wa); if (a.isEmpty()) notFound.add("\"" + wa + "\"");

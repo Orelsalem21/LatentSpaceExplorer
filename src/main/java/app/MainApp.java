@@ -5,7 +5,6 @@ import utils.ButtonStyler;
 import command.CommandHistory;
 import command.ReversibleCommand;
 import controller.*;
-import metric.MetricFactory;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -35,7 +34,6 @@ public class MainApp extends Application {
     private DetailsPanelView rightPanel;
     private MainView mainView;
 
-    private String                        currentMetricName = MetricFactory.DEFAULT_METRIC;
     private CommandHistory               commandHistory;
     private MainController               mainController;
     private EmbeddingLoaderController    loaderController;
@@ -145,7 +143,7 @@ public class MainApp extends Application {
                 sessionCtrl.loadSession(path, leftPanel, mainController, neighborCtrl));
 
         leftPanel.setOnMetricChanged(name -> {
-            String prev = currentMetricName;
+            String prev = appState.metricNameProperty().get();
             commandHistory.execute(new ReversibleCommand(
                     () -> applyMetric(name),
                     () -> applyMetric(prev)
@@ -160,7 +158,6 @@ public class MainApp extends Application {
     }
 
     private void applyMetric(String metricName) {
-        currentMetricName = metricName;
         leftPanel.setMetric(metricName);
         mainController.onMetricChanged(metricName);
         rightPanel.recalculateDistance();
